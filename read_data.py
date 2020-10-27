@@ -42,7 +42,7 @@ import nltk
 #     return {id: {'HEADLINE': headline, 'DATE': date, 'TEXT': sentences}}
 
 
-# Load story as single string, adds to dict
+# Load story as single string, returns data in dict
 def load_story(fname):
     read_text = False
     story = ''
@@ -104,11 +104,14 @@ def get_context_words(text, k, t_idx, split=True):
         else:
             start = 0
         l_words = text[start:t_idx]
-        if t_idx+1+k < len(text):
-            end = t_idx+1+k
+        # if t_idx+1+k < len(text):
+        #     end = t_idx+1+k
+        if t_idx+k < len(text):
+            end = t_idx+k
         else:
             end = len(text)
-        r_words = text[t_idx+1:end]
+        # r_words = text[t_idx+1:end]
+        r_words = text[t_idx:end]
         words = l_words + r_words
     return words
 
@@ -121,6 +124,7 @@ def get_best_context(story, question, k):
         context_words = get_context_words(story, k, t_idx)
         curr_context_matches = 0
         for q_word in question.split():
+            # TODO: if duplicates exist, this still only counts 1
             if q_word in context_words:
                 curr_context_matches += 1
         if curr_context_matches > best_context_matches:
@@ -129,6 +133,17 @@ def get_best_context(story, question, k):
     return best_context
 
 
+# Removes any words with POS in filter tags from text, returns filtered text
+def filter_by_POS(text, filter_tags):
+    tagged_text = get_POS_tags(text)
+    pos_text = [tagged[1] for tagged in tagged_text]
+    word_text = [tagged[0] for tagged in tagged_text]
+    filter_idxs = [idx for idx in range(len(pos_text)) if pos_text[idx] in filter_tags]
+    filtered_text = [w for i, w in enumerate(word_text) if i not in filter_idxs]
+    return filtered_text
+
+
+# ===========================
 # ===========================
 # s = load_story_sentences('data/1999-W02-5.story')
 
@@ -148,10 +163,14 @@ for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
+
+        filter_by_POS(question, ['DT', '.', ','])
+
         story = stories[story_id]['TEXT']
         best_context = get_best_context(story, question, k)
+        print('here')
 
-# Get POS tags for stories
-for k in list(s.keys()):
-    text = s[k]['TEXT']
-    pos = get_POS_tags(text)
+# # Get POS tags for stories
+# for k in list(s.keys()):
+#     text = s[k]['TEXT']
+#     pos = get_POS_tags(text)
