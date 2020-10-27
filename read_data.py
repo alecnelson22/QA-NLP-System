@@ -133,6 +133,28 @@ def get_best_context(story, question, k):
     return best_context
 
 
+
+def get_best_context_w_pos(story, story_pos, question, question_pos,k):
+    best_context_matches = 0
+    for t_idx in range(len(story)):
+        context_words = get_context_words(story, k, t_idx,False)
+        context_pos = get_context_words(story_pos, k, t_idx,False)
+        # print(context_words,context_pos)
+        # asdf
+        curr_context_matches = 0
+        for q_word,q_pos in zip(question, question_pos):
+            # print(q_word,q_pos)
+            # TODO: if duplicates exist, this still only counts 1
+            for cword, cpos in zip(context_words,context_pos):
+                if q_word == cword and cpos==q_pos:
+                    curr_context_matches += 1
+                    # print('yay')
+        if curr_context_matches > best_context_matches:
+            best_context_matches = curr_context_matches
+            best_context = context_words
+    return best_context
+
+
 # Removes any words with POS in filter tags from text, returns filtered text
 def filter_by_POS(text, filter_tags):
     tagged_text = get_POS_tags(text)
@@ -140,8 +162,9 @@ def filter_by_POS(text, filter_tags):
     word_text = [tagged[0] for tagged in tagged_text]
     filter_idxs = [idx for idx in range(len(pos_text)) if pos_text[idx] in filter_tags]
     filtered_text = [w for i, w in enumerate(word_text) if i not in filter_idxs]
-    return filtered_text
-
+    filtered_pos=[w for i, w in enumerate(pos_text) if i not in filter_idxs]
+    # print(filtered_pos)
+    return filtered_text, filtered_pos
 
 # ===========================
 # ===========================
@@ -164,11 +187,17 @@ for story_id in list(questions.keys()):
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
 
-        filter_by_POS(question, ['DT', '.', ','])
-
+        filtered_q_text,filtered_q_pos=filter_by_POS(question, ['DT', '.', ','])
         story = stories[story_id]['TEXT']
+        filtered_s_text,filtered_s_pos=filter_by_POS(story, ['DT', '.', ','])
+        # print(filtered_s_text)
         best_context = get_best_context(story, question, k)
+        best_context_w_pos=get_best_context_w_pos(filtered_s_text, filtered_s_pos,filtered_q_text,filtered_q_pos,k)
+        print(question)
+        print(best_context_w_pos)
+        print(best_context)
         print('here')
+
 
 # # Get POS tags for stories
 # for k in list(s.keys()):
