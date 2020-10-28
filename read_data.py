@@ -1,7 +1,8 @@
 import numpy as np
 import nltk
-# nltk.download('punkt')
-# nltk.download('averaged_perceptron_tagger')
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.corpus import wordnet
 
 
 # # Load a story into separate sentences
@@ -91,7 +92,7 @@ def get_POS_tags(text):
 
 
 # Grabs words k to the left and k to the right of word at target index t_idx
-def get_context_words(text, k, t_idx, split=True):
+def get_context_words(text, k, t_idx, split=False):
     if split:
         text = text.split()
     if k == 0:
@@ -104,13 +105,10 @@ def get_context_words(text, k, t_idx, split=True):
         else:
             start = 0
         l_words = text[start:t_idx]
-        # if t_idx+1+k < len(text):
-        #     end = t_idx+1+k
         if t_idx+k < len(text):
             end = t_idx+k
         else:
             end = len(text)
-        # r_words = text[t_idx+1:end]
         r_words = text[t_idx:end]
         words = l_words + r_words
     return words
@@ -123,15 +121,16 @@ def get_best_context(story, question, k):
     for t_idx in range(len(story)):
         context_words = get_context_words(story, k, t_idx)
         curr_context_matches = 0
-        for q_word in question.split():
+        # for q_word in question.split():
+        for q_word in question:
             # TODO: if duplicates exist, this still only counts 1
+            # Could add a custom scoring function here
             if q_word in context_words:
                 curr_context_matches += 1
         if curr_context_matches > best_context_matches:
             best_context_matches = curr_context_matches
             best_context = context_words
     return best_context
-
 
 
 def get_best_context_w_pos(story, story_pos, question, question_pos,k):
@@ -163,22 +162,31 @@ def filter_by_POS(text, filter_tags):
     filter_idxs = [idx for idx in range(len(pos_text)) if pos_text[idx] in filter_tags]
     filtered_text = [w for i, w in enumerate(word_text) if i not in filter_idxs]
     filtered_pos=[w for i, w in enumerate(pos_text) if i not in filter_idxs]
-    # print(filtered_pos)
     return filtered_text, filtered_pos
+    # return filtered_text, filtered_pos
+
+
+def filter_by_stopwords(text, stopwords):
+    tokenized = nltk.word_tokenize(text)
+    filtered_text = [w for w in tokenized if w not in stopwords]
+    return filtered_text
+
 
 # ===========================
 # ===========================
 # s = load_story_sentences('data/1999-W02-5.story')
 
-stories = {}
-questions = {}
-
-id = '1999-W02-5'
+# Load data
+id = '1999-W03-5'
 story_data = load_story('data/' + id + '.story')
 question_data = load_QA('data/' + id + '.answers')
-
+stories = {}
+questions = {}
 stories[id] = story_data
 questions[id] = question_data
+
+# Define common English stop words for text filtration
+stop_words = set(stopwords.words('english'))
 
 # Find the best context- section of story words with most overlap of questions words
 k = 5
@@ -186,20 +194,25 @@ for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
-
-        filtered_q_text,filtered_q_pos=filter_by_POS(question, ['DT', '.', ','])
         story = stories[story_id]['TEXT']
-        filtered_s_text,filtered_s_pos=filter_by_POS(story, ['DT', '.', ','])
-        # print(filtered_s_text)
-        best_context = get_best_context(story, question, k)
-        best_context_w_pos=get_best_context_w_pos(filtered_s_text, filtered_s_pos,filtered_q_text,filtered_q_pos,k)
-        print(question)
-        print(best_context_w_pos)
-        print(best_context)
+
+        # filtered_q_text, filtered_q_pos = filter_by_POS(question, ['DT', '.', ','])
+        # filtered_s_text, filtered_s_pos = filter_by_POS(story, ['DT', '.', ','])
+
+        filtered_q = filter_by_stopwords(question, stop_words)
+        filtered_s = filter_by_stopwords(story, stop_words)
+
+        # Build synonym list for words in question
+        # TODO: clean this list
+        synonyms = []
+        for word in filtered_q:
+            for synset in wordnet.synsets(word):
+                for lemma in synset.lemmas():
+                    synonyms.append(lemma.name())
+        filtered_q.extend(synonyms)
+
+        best_context = get_best_context(filtered_s, filtered_q, k)
+        # best_context_w_pos=get_best_context_w_pos(filtered_s_text, filtered_s_pos,filtered_q_text,filtered_q_pos,k)
         print('here')
 
 
-# # Get POS tags for stories
-# for k in list(s.keys()):
-#     text = s[k]['TEXT']
-#     pos = get_POS_tags(text)
