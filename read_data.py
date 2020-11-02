@@ -1,9 +1,14 @@
 import numpy as np
 import nltk
+# nltk.download()
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.corpus import wordnet
 
+import spacy
+
+
+vec_model = spacy.load("en_core_web_md")  # make sure to use larger model!
 
 # # Load a story into separate sentences
 # # TODO: some quality control required (see below)
@@ -113,7 +118,17 @@ def get_context_words(text, k, t_idx, split=False):
         words = l_words + r_words
     return words
 
+def get_context_words_span(text, k, t_idx):
+    start=t_idx-k
+    end=t_idx+k+1
+    if(t_idx-k<0):
+        start=0
+    if(t_idx+k+1>len(text)):
+        end=len(text)
 
+    words= text[start:end]
+    # print(words)
+    return(words)
 # Finds and returns the context with size k from a story text that
 # contains the highest number of words from a question text
 def get_best_context(story, question, k):
@@ -153,6 +168,22 @@ def get_best_context_w_pos(story, story_pos, question, question_pos,k):
             best_context = context_words
     return best_context
 
+def get_best_context_w_weight(story, questions, k):
+    best_context_matches = 0
+    for t_idx in range(len(story)):
+        context_words = get_context_words_span(story, k, t_idx)
+        curr_context_matches = 0
+        # for q_word in question.split():
+        for q_word in questions:
+            # TODO: if duplicates exist, this still only counts 1
+            # Could add a custom scoring function here
+            for s_word in context_words:
+                curr_context_matches+= q_word.similarity(s_word)
+        if curr_context_matches > best_context_matches:
+            best_context_matches = curr_context_matches
+            best_context = context_words
+    print(best_context_matches)
+    return best_context
 
 # Removes any words with POS in filter tags from text, returns filtered text
 def filter_by_POS(text, filter_tags):
@@ -170,6 +201,17 @@ def filter_by_stopwords(text, stopwords):
     tokenized = nltk.word_tokenize(text)
     filtered_text = [w for w in tokenized if w not in stopwords]
     return filtered_text
+
+def vectorize_words(text):
+    str1 = ""  
+    
+    # traverse in the string   
+    for ele in text:  
+        str1 += ele+" "   
+    # print(str1)
+    vectorized=vec_model(str1)
+    # print(vectorized)
+    return vectorized
 
 
 # ===========================
@@ -191,6 +233,7 @@ stop_words = set(stopwords.words('english'))
 # Find the best context- section of story words with most overlap of questions words
 k = 5
 for story_id in list(questions.keys()):
+    print(story_id)
     story_qa = questions[story_id]
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
@@ -202,16 +245,25 @@ for story_id in list(questions.keys()):
         filtered_q = filter_by_stopwords(question, stop_words)
         filtered_s = filter_by_stopwords(story, stop_words)
 
-        # Build synonym list for words in question
-        # TODO: clean this list
-        synonyms = []
-        for word in filtered_q:
-            for synset in wordnet.synsets(word):
-                for lemma in synset.lemmas():
-                    synonyms.append(lemma.name())
-        filtered_q.extend(synonyms)
+        vectorized_q=vectorize_words(filtered_q)
+        vectorized_s=vectorize_words(filtered_s)
+        # for token in vectorized_q:
+        #     if not token.has_vector:
+        #         print('AAAHHH',token.text, token.has_vector, token.vector_norm, token.is_oov)
+        best_context = get_best_context_w_weight(vectorized_s,vectorized_q,k)
+        # # Build synonym list for words in question
+        # # TODO: clean this list
+        # synonyms = []
+        # for word in filtered_q:
+        #     for synset in wordnet.synsets(word):
+        #         for lemma in synset.lemmas():
+        #             synonyms.append(lemma.name())
+        # filtered_q.extend(synonyms)
 
-        best_context = get_best_context(filtered_s, filtered_q, k)
+        # best_context = get_best_context(filtered_s, filtered_q, k)
+        print(question)
+        print(story_qa[question_id]['Answer'])
+        print(best_context)
         # best_context_w_pos=get_best_context_w_pos(filtered_s_text, filtered_s_pos,filtered_q_text,filtered_q_pos,k)
         print('here')
 
