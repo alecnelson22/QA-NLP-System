@@ -6,9 +6,10 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import wordnet
 
 import spacy
+import os
 
 
-vec_model = spacy.load("en_core_web_md")  # make sure to use larger model!
+# vec_model = spacy.load("en_core_web_md")  # make sure to use larger model!
 
 # # Load a story into separate sentences
 # # TODO: some quality control required (see below)
@@ -228,31 +229,38 @@ def extract_question_word(question):
     pass
 
 
-question_types = ['who', 'what', 'when', 'where', 'why', 'how']
-
-
-
+# finds what two word question phrases appear in our data and the number of times they occur
+# returns dict of form {two word phrase: count, ...}
+def get_q_words_count():
+    for i, w in enumerate(tokenized_q):
+        if w.lower() in question_words:
+            q2 = w.lower() + ' ' + tokenized_q[i + 1]
+            if q2 not in list(question_2words.keys()):
+                question_2words[q2] = 1
+            else:
+                question_2words[q2] += 1
 
 # ===========================
 # ===========================
 # s = load_story_sentences('data/1999-W02-5.story')
 
-# Load data
-id = '1999-W02-5'
-story_data = load_story('data/' + id + '.story')
-question_data = load_QA('data/' + id + '.answers')
+# Load all of our data
 stories = {}
 questions = {}
-stories[id] = story_data
-questions[id] = question_data
+for fname in os.listdir(os.getcwd() + '/data'):
+        id = fname.split('.')[0]
+        story_data = load_story('data/' + id + '.story')
+        question_data = load_QA('data/' + id + '.answers')
+        stories[id] = story_data
+        questions[id] = question_data
 
-# Define common English stop words for text filtration
 stop_words = set(stopwords.words('english'))
+question_words = ['who', 'what', 'when', 'where', 'why', 'how']
+question_2words = {}
 
 # Find the best context- section of story words with most overlap of questions words
 k = 5
 for story_id in list(questions.keys()):
-    print(story_id)
     story_qa = questions[story_id]
     for question_id in list(story_qa.keys()):
 
@@ -262,32 +270,38 @@ for story_id in list(questions.keys()):
         tokenized_q = nltk.word_tokenize(question)
         tokenized_s = nltk.word_tokenize(story)
 
-        filtered_q, filtered_q_pos = filter_by_POS(tokenized_q, ['DT', '.', ','])
-        # filtered_s_text, filtered_s_pos = filter_by_POS(tokenized_s, ['DT', '.', ','])
+        # populates question_2words
+        get_q_words_count()
 
-        filtered_q = filter_by_stopwords(filtered_q, stop_words)
-        filtered_s = filter_by_stopwords(story, stop_words)
+question_2words = {k: v for k, v in sorted(question_2words.items(), key=lambda item: item[1], reverse=True)}
+print('here')
 
-        vectorized_q = vectorize_words(filtered_q)
-        vectorized_s = vectorize_words(filtered_s)
-        # for token in vectorized_q:
-        #     if not token.has_vector:
-        #         print('AAAHHH',token.text, token.has_vector, token.vector_norm, token.is_oov)
-        best_context = get_best_context_w_weight(vectorized_s,vectorized_q,k)
-        # # Build synonym list for words in question
-        # # TODO: clean this list
-        # synonyms = []
-        # for word in filtered_q:
-        #     for synset in wordnet.synsets(word):
-        #         for lemma in synset.lemmas():
-        #             synonyms.append(lemma.name())
-        # filtered_q.extend(synonyms)
-
-        # best_context = get_best_context(filtered_s, filtered_q, k)
-        print(question)
-        print(story_qa[question_id]['Answer'])
-        print(best_context)
-        # best_context_w_pos=get_best_context_w_pos(filtered_s_text, filtered_s_pos,filtered_q_text,filtered_q_pos,k)
-        print('here')
-
+        # filtered_q, filtered_q_pos = filter_by_POS(tokenized_q, ['DT', '.', ','])
+        # # filtered_s_text, filtered_s_pos = filter_by_POS(tokenized_s, ['DT', '.', ','])
+        #
+        # filtered_q = filter_by_stopwords(filtered_q, stop_words)
+        # filtered_s = filter_by_stopwords(story, stop_words)
+        #
+        # vectorized_q = vectorize_words(filtered_q)
+        # vectorized_s = vectorize_words(filtered_s)
+        # # for token in vectorized_q:
+        # #     if not token.has_vector:
+        # #         print('AAAHHH',token.text, token.has_vector, token.vector_norm, token.is_oov)
+        # best_context = get_best_context_w_weight(vectorized_s,vectorized_q,k)
+        # # # Build synonym list for words in question
+        # # # TODO: clean this list
+        # # synonyms = []
+        # # for word in filtered_q:
+        # #     for synset in wordnet.synsets(word):
+        # #         for lemma in synset.lemmas():
+        # #             synonyms.append(lemma.name())
+        # # filtered_q.extend(synonyms)
+        #
+        # # best_context = get_best_context(filtered_s, filtered_q, k)
+        # print(question)
+        # print(story_qa[question_id]['Answer'])
+        # print(best_context)
+        # # best_context_w_pos=get_best_context_w_pos(filtered_s_text, filtered_s_pos,filtered_q_text,filtered_q_pos,k)
+        # print('here')
+#==========
 
