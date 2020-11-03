@@ -231,15 +231,20 @@ def extract_question_word(question):
 
 # finds what two word question phrases appear in our data and the number of times they occur
 # returns dict of form {two word phrase: count, ...}
-def get_q_words_count():
-    for i, w in enumerate(tokenized_q):
+def get_q_words_count(tokenized):
+    for i, w in enumerate(tokenized):
         if w.lower() in q_words:
-            q2 = w.lower() + ' ' + tokenized_q[i + 1]
+            q2 = w.lower() + ' ' + tokenized[i + 1]
             if q2 not in list(q_2word_counts.keys()):
-                q_2word_counts[q2] = 1
-            else:
-                q_2word_counts[q2] += 1
+                q_2word_counts[q2]={}
+                q_2word_counts[q2]['Count'] = 1
+                q_2word_counts[q2]['ENT']= {}
+                # q_2word_counts[q2]['NP']= [] 
+                q_2word_counts[q2]['POS']= {}
 
+            else:
+                q_2word_counts[q2]['Count'] += 1
+            return q2
 # ===========================
 # ===========================
 # s = load_story_sentences('data/1999-W02-5.story')
@@ -255,33 +260,61 @@ for fname in os.listdir(os.getcwd() + '/data'):
         questions[id] = question_data
 
 stop_words = set(stopwords.words('english'))
-q_words = ['who', 'what', 'when', 'where', 'why', 'how']
-q_2word_counts = {}
 
+###Build Dictionary for Question Types######
+
+##init 
+q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
+q_2word_counts = {}
+id_to_type={}
+for story_id in list(questions.keys()):
+    story_qa = questions[story_id]
+    for question_id in list(story_qa.keys()):
+        question = story_qa[question_id]['Question']
+        tokenized_q = nltk.word_tokenize(question)
+        q_type=get_q_words_count(tokenized_q)
+        # print(q_type)
+        id_to_type[question_id]=q_type
+
+# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+print(q_2word_counts)
+print(id_to_type)
 # Find the best context- section of story words with most overlap of questions words
 k = 5
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
+    story = stories[story_id]['TEXT']
+    tokenized_s = nltk.word_tokenize(story)
     for question_id in list(story_qa.keys()):
-
         question = story_qa[question_id]['Question']
-        answer = story_qa[question_id]['Answer']
-        story = stories[story_id]['TEXT']
-
+        answer = story_qa[question_id]['Answer'] #this is a list
+        tokenized_q = nltk.word_tokenize(question)
+        q_type=id_to_type[question_id]
         for a in answer:
             print("Question: ", question)
             print("Answer: ", a)
-
             doc = nlp(a)
             print("Named Entities: ", [[ent.text, ent.label_] for ent in doc.ents])
-            print("Noun phrases: ", [nc.text for nc in doc.noun_chunks])
+            print("Noun phrases: ", [nc.text for nc in doc.noun_chunks]) #todo not sure how to implement in best context so left out of dict
             print("Text as POS tags: ", [token.pos_ for token in doc])
             print('\n')
 
-        # populates question_2words
-        get_q_words_count()
+            for ent in doc.ents:
+                if ent.label_ not in q_2word_counts[q_type]['ENT']:
+                    q_2word_counts[q_type]['ENT'][ent.label_ ]=1
+                else:
+                    q_2word_counts[q_type]['ENT'][ent.label_]+=1
+            for token in doc:
+                if  (not token.is_stop and not token.pos_=='SPACE') :
+                    tag = token.pos_
+                    
+                    if tag not in q_2word_counts[q_type]['POS']:
+                        q_2word_counts[q_type]['POS'][tag]=1
 
-q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+                    else:
+                        q_2word_counts[q_type]['POS'][tag]+=1
+print(q_2word_counts)
+
 print('here')
 
 
