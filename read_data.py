@@ -212,12 +212,24 @@ def vectorize_words(text):
     return vectorized
 
 
-def weight_proper_nouns(text):
+# Loop through all answers, determine semantic category
+def create_answer_categories():
     pass
 
 
-def analyze_first_word(question):
+# ex NP PP VP NP, return parse
+# use Spacy?
+def parse(text):
     pass
+
+
+# send any return value to existing question/answer dictionary
+def extract_question_word(question):
+    pass
+
+
+question_types = ['who', 'what', 'when', 'where', 'why', 'how']
+
 
 
 
@@ -256,8 +268,8 @@ for story_id in list(questions.keys()):
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
         filtered_s = filter_by_stopwords(story, stop_words)
 
-        vectorized_q=vectorize_words(filtered_q)
-        vectorized_s=vectorize_words(filtered_s)
+        vectorized_q = vectorize_words(filtered_q)
+        vectorized_s = vectorize_words(filtered_s)
         # for token in vectorized_q:
         #     if not token.has_vector:
         #         print('AAAHHH',token.text, token.has_vector, token.vector_norm, token.is_oov)
