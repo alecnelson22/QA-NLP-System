@@ -1,6 +1,5 @@
 import numpy as np
 import nltk
-# nltk.download()
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.corpus import wordnet
@@ -9,7 +8,8 @@ import spacy
 import os
 
 
-# vec_model = spacy.load("en_core_web_md")  # make sure to use larger model!
+nlp = spacy.load("en_core_web_md")  # make sure to use larger model!
+# nlp = spacy.load("en_core_web_sm")  # make sure to use larger model!
 
 # # Load a story into separate sentences
 # # TODO: some quality control required (see below)
@@ -118,6 +118,7 @@ def get_context_words(text, k, t_idx, split=False):
         words = l_words + r_words
     return words
 
+
 def get_context_words_span(text, k, t_idx):
     start=t_idx-k
     end=t_idx+k+1
@@ -129,6 +130,8 @@ def get_context_words_span(text, k, t_idx):
     words= text[start:end]
     # print(words)
     return(words)
+
+
 # Finds and returns the context with size k from a story text that
 # contains the highest number of words from a question text
 def get_best_context(story, question, k):
@@ -168,6 +171,7 @@ def get_best_context_w_pos(story, story_pos, question, question_pos,k):
             best_context = context_words
     return best_context
 
+
 def get_best_context_w_weight(story, questions, k):
     best_context_matches = 0
     for t_idx in range(len(story)):
@@ -185,6 +189,7 @@ def get_best_context_w_weight(story, questions, k):
     print(best_context_matches)
     return best_context
 
+
 # Removes any words with POS in filter tags from text, returns filtered text
 def filter_by_POS(text, filter_tags):
     tagged_text = get_POS_tags(text)
@@ -200,6 +205,7 @@ def filter_by_POS(text, filter_tags):
 def filter_by_stopwords(text, stopwords):
     filtered_text = [w for w in text if w not in stopwords]
     return filtered_text
+
 
 def vectorize_words(text):
     str1 = ""  
@@ -218,12 +224,6 @@ def create_answer_categories():
     pass
 
 
-# ex NP PP VP NP, return parse
-# use Spacy?
-def parse(text):
-    pass
-
-
 # send any return value to existing question/answer dictionary
 def extract_question_word(question):
     pass
@@ -233,18 +233,18 @@ def extract_question_word(question):
 # returns dict of form {two word phrase: count, ...}
 def get_q_words_count():
     for i, w in enumerate(tokenized_q):
-        if w.lower() in question_words:
+        if w.lower() in q_words:
             q2 = w.lower() + ' ' + tokenized_q[i + 1]
-            if q2 not in list(question_2words.keys()):
-                question_2words[q2] = 1
+            if q2 not in list(q_2word_counts.keys()):
+                q_2word_counts[q2] = 1
             else:
-                question_2words[q2] += 1
+                q_2word_counts[q2] += 1
 
 # ===========================
 # ===========================
 # s = load_story_sentences('data/1999-W02-5.story')
 
-# Load all of our data
+# Load all of our data into memory
 stories = {}
 questions = {}
 for fname in os.listdir(os.getcwd() + '/data'):
@@ -255,8 +255,8 @@ for fname in os.listdir(os.getcwd() + '/data'):
         questions[id] = question_data
 
 stop_words = set(stopwords.words('english'))
-question_words = ['who', 'what', 'when', 'where', 'why', 'how']
-question_2words = {}
+q_words = ['who', 'what', 'when', 'where', 'why', 'how']
+q_2word_counts = {}
 
 # Find the best context- section of story words with most overlap of questions words
 k = 5
@@ -265,16 +265,28 @@ for story_id in list(questions.keys()):
     for question_id in list(story_qa.keys()):
 
         question = story_qa[question_id]['Question']
+        answer = story_qa[question_id]['Answer']
         story = stories[story_id]['TEXT']
 
-        tokenized_q = nltk.word_tokenize(question)
-        tokenized_s = nltk.word_tokenize(story)
+        for a in answer:
+            print("Question: ", question)
+            print("Answer: ", a)
+
+            doc = nlp(a)
+            print("Named Entities: ", [[ent.text, ent.label_] for ent in doc.ents])
+            print("Noun phrases: ", [nc.text for nc in doc.noun_chunks])
+            print("Text as POS tags: ", [token.pos_ for token in doc])
+            print('\n')
 
         # populates question_2words
         get_q_words_count()
 
-question_2words = {k: v for k, v in sorted(question_2words.items(), key=lambda item: item[1], reverse=True)}
+q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
 print('here')
+
+
+        # tokenized_q = nltk.word_tokenize(question)
+        # tokenized_s = nltk.word_tokenize(story)
 
         # filtered_q, filtered_q_pos = filter_by_POS(tokenized_q, ['DT', '.', ','])
         # # filtered_s_text, filtered_s_pos = filter_by_POS(tokenized_s, ['DT', '.', ','])
