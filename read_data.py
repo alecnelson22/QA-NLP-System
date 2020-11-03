@@ -176,14 +176,11 @@ def get_best_context_w_pos(story, story_pos, question, question_pos,k):
 def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight_dict):
     best_context_weight = 0
     for t_idx in range(len(story)):
-        context_words = get_context_words_span(story, k, t_idx)
-        # for q_word in question.split():
+        context_words = get_context_words_span(story, k, t_idx) #context_words is a spacy doc
         curr_context_weight=0
 
         #word level comparisons
         for q_word in question:
-            # TODO: if duplicates exist, this still only counts 1
-            # Could add a custom scoring function here
             for s_word in context_words:
                 for w_type in weight_dict: 
                     if(w_type== 'TEXT'):
@@ -194,15 +191,10 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
                             curr_context_weight+=curr_attr[s_word.pos_]*weight_dict[w_type]
                     elif(w_type=='ENT'):
                         continue
-                        # entities= [ent.label_ for ent in context_doc.ents]
-                        # for ent in entities:
-                        #     if ent in curr_attr:
-                        #         curr_context_weight+=curr_attr[ent]*weight_dict[w_type]
                     else:
                         print("Attribute Type currently not supported")
         #context level comparisons
         if('ENT' in weight_dict):
-            # context_doc=vectorize_list(context_words)
             entities= [ent.label_ for ent in context_words.ents]
             curr_attr=attribute_dict[q_type]["ENT"]
             for ent in entities:
@@ -274,7 +266,7 @@ def get_q_words_count(tokenized):
             return q2
 # ===========================
 # ===========================
-# s = load_story_sentences('data/1999-W02-5.story')
+
 
 # Load all of our data into memory
 stories = {}
@@ -288,12 +280,12 @@ for fname in os.listdir(os.getcwd() + '/data'):
 
 stop_words = set(stopwords.words('english'))
 
-###Build Dictionary for Question Types######
+#############Build Dictionary for Question Types#############
 
-##init 
+##init##  (torin note: notice I had to add a few more)
 q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
-q_2word_counts = {}
-id_to_type={}
+q_2word_counts = {} #attribute dictionary
+id_to_type={} #link q to type
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     for question_id in list(story_qa.keys()):
@@ -304,10 +296,9 @@ for story_id in list(questions.keys()):
         id_to_type[question_id]=q_type
 
 # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+
+##Construct##
 print(q_2word_counts)
-# print(id_to_type)
-# Find the best context- section of story words with most overlap of questions words
-k = 5
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     story = stories[story_id]['TEXT']
@@ -318,9 +309,9 @@ for story_id in list(questions.keys()):
         tokenized_q = nltk.word_tokenize(question)
         q_type=id_to_type[question_id]
         for a in answer:
+            doc = nlp(a)
             # print("Question: ", question)
             # print("Answer: ", a)
-            doc = nlp(a)
             # print("Named Entities: ", [[ent.text, ent.label_] for ent in doc.ents])
             # print("Noun phrases: ", [nc.text for nc in doc.noun_chunks]) #todo not sure how to implement in best context so left out of dict
             # print("Text as POS tags: ", [token.pos_ for token in doc])
@@ -342,9 +333,13 @@ for story_id in list(questions.keys()):
                         q_2word_counts[q_type]['POS'][tag]+=1
 print(q_2word_counts)
 
-print('here')
-
+#######hyper parameters#######
+k = 5
 weights={"TEXT":1, "POS":.1, "ENT":1}
+####################################
+
+
+######run#####################
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     story = stories[story_id]['TEXT']
@@ -356,6 +351,7 @@ for story_id in list(questions.keys()):
         tokenized_q = nltk.word_tokenize(question)
         q_type=id_to_type[question_id]
 
+        #TODO: clean up to remove nltk dep
         filtered_q, filtered_q_pos = filter_by_POS(tokenized_q, ['DT', '.', ','])
         filtered_s_text, filtered_s_pos = filter_by_POS(tokenized_s, ['DT', '.', ','])
         
@@ -364,10 +360,7 @@ for story_id in list(questions.keys()):
         # print(filtered_s)
         vectorized_q = vectorize_list(filtered_q)
         vectorized_s = vectorize_list(filtered_s)
-        # for token in vectorized_q:
-        #     if not token.has_vector:
-        #         print('AAAHHH',token.text, token.has_vector, token.vector_norm, token.is_oov)
-        # print(vectorized_q, vectorized_s)
+
         best_context = get_best_context_w_weight(vectorized_s,vectorized_q,q_2word_counts,k,q_type,weights)
         # # Build synonym list for words in question
         # # TODO: clean this list
@@ -378,11 +371,9 @@ for story_id in list(questions.keys()):
         #             synonyms.append(lemma.name())
         # filtered_q.extend(synonyms)
         
-        # best_context = get_best_context(filtered_s, filtered_q, k)
         print(question)
         print(story_qa[question_id]['Answer'])
         print(best_context)
-        # best_context_w_pos=get_best_context_w_pos(filtered_s_text, filtered_s_pos,filtered_q_text,filtered_q_pos,k)
         print('here')
     sadf
 #==========
