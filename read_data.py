@@ -87,8 +87,7 @@ def load_QA(fname):
 
 # Returns list of tuples (word, POS) given a string of text
 def get_POS_tags(text):
-    tokenized = nltk.word_tokenize(text)
-    return nltk.pos_tag(tokenized)
+    return nltk.pos_tag(text)
 
 
 # Grabs words k to the left and k to the right of word at target index t_idx
@@ -167,9 +166,17 @@ def filter_by_POS(text, filter_tags):
 
 
 def filter_by_stopwords(text, stopwords):
-    tokenized = nltk.word_tokenize(text)
-    filtered_text = [w for w in tokenized if w not in stopwords]
+    filtered_text = [w for w in text if w not in stopwords]
     return filtered_text
+
+
+def weight_proper_nouns(text):
+    pass
+
+
+def analyze_first_word(question):
+    pass
+
 
 
 # ===========================
@@ -177,7 +184,7 @@ def filter_by_stopwords(text, stopwords):
 # s = load_story_sentences('data/1999-W02-5.story')
 
 # Load data
-id = '1999-W03-5'
+id = '1999-W02-5'
 story_data = load_story('data/' + id + '.story')
 question_data = load_QA('data/' + id + '.answers')
 stories = {}
@@ -193,13 +200,17 @@ k = 5
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     for question_id in list(story_qa.keys()):
+
         question = story_qa[question_id]['Question']
         story = stories[story_id]['TEXT']
 
-        # filtered_q_text, filtered_q_pos = filter_by_POS(question, ['DT', '.', ','])
-        # filtered_s_text, filtered_s_pos = filter_by_POS(story, ['DT', '.', ','])
+        tokenized_q = nltk.word_tokenize(question)
+        tokenized_s = nltk.word_tokenize(story)
 
-        filtered_q = filter_by_stopwords(question, stop_words)
+        filtered_q, filtered_q_pos = filter_by_POS(tokenized_q, ['DT', '.', ','])
+        # filtered_s_text, filtered_s_pos = filter_by_POS(tokenized_s, ['DT', '.', ','])
+
+        filtered_q = filter_by_stopwords(filtered_q, stop_words)
         filtered_s = filter_by_stopwords(story, stop_words)
 
         # Build synonym list for words in question
