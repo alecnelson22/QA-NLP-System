@@ -1,5 +1,6 @@
 import numpy as np
 import nltk
+import math
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.corpus import wordnet
@@ -171,7 +172,7 @@ def get_best_context_w_pos(story, story_pos, question, question_pos,k):
 def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight_dict):
     best_context_weight = 0
     for t_idx in range(len(story)):
-        context_words = get_context_words_span(story, k, t_idx) #context_words is a spacy doc
+        context_words = get_context_words_span(story, k, t_idx)  # context_words is a spacy doc
         curr_context_weight = 0
 
         #word level comparisons
@@ -232,24 +233,49 @@ def vectorize_list(text):
 
 # finds what two word question phrases appear in our data and the number of times they occur
 # returns dict of form {two word phrase: count, ...}
-def get_q_words_count(tokenized):
-    for i, w in enumerate(tokenized):
+def get_q_words_count(tokenized_q, nlp_a):
+    tokenized_a = [[token.text for token in a] for a in nlp_a]
+    a_lens = [len(a) for a in tokenized_a]
+    # a_avg_len = math.ceil(np.mean(a_lens))
+    for i, w in enumerate(tokenized_q):
         if w.lower() in q_words:
-            q2 = w.lower() + ' ' + tokenized[i + 1]
+            q2 = w.lower() + ' ' + tokenized_q[i + 1]
             if q2 not in list(q_2word_counts.keys()):
-                q_2word_counts[q2]={}
+                q_2word_counts[q2] = {}
                 q_2word_counts[q2]['Count'] = 1
-                q_2word_counts[q2]['ENT']= {}
+                q_2word_counts[q2]['ENT'] = {}
                 # q_2word_counts[q2]['NP']= [] 
-                q_2word_counts[q2]['POS']= {}
+                q_2word_counts[q2]['POS'] = {}
+                q_2word_counts[q2]['Avg Ans Len'] = a_lens  # Count lengths for now, take average at the end
             else:
                 q_2word_counts[q2]['Count'] += 1
-            return q2
+                q_2word_counts[q2]['Avg Ans Len'].extend(a_lens)
+
+            for a in nlp_a:
+                for ent in a.ents:
+                    if ent.label_ not in q_2word_counts[q2]['ENT']:
+                        q_2word_counts[q2]['ENT'][ent.label_] = 1
+                    else:
+                        q_2word_counts[q2]['ENT'][ent.label_] += 1
+                for token in a:
+                    if (not token.is_stop and not token.pos_ == 'SPACE'):
+                        tag = token.pos_
+                        if tag not in q_2word_counts[q2]['POS']:
+                            q_2word_counts[q2]['POS'][tag] = 1
+                        else:
+                            q_2word_counts[q2]['POS'][tag] += 1
+    return q2
+
+
+def get_avg_ans_len():
+    for q_type in q_2word_counts.keys():
+        q_2word_counts[q_type]['Avg Ans Len'] = math.ceil(np.mean(q_2word_counts[q_type]['Avg Ans Len']))
+
 # ===========================
 # ===========================
 
 
-# Load all of our data into memory
+#######Load Data#######
 stories = {}
 questions = {}
 for fname in os.listdir(os.getcwd() + '/data'):
@@ -259,11 +285,8 @@ for fname in os.listdir(os.getcwd() + '/data'):
         stories[id] = story_data
         questions[id] = question_data
 
-stop_words = set(stopwords.words('english'))
 
-#############Build Dictionary for Question Types#############
-
-##init##
+#######Build Dictionary for Question Types#######
 q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 q_2word_counts = {}  # attribute dictionary
 id_to_type = {}  # link q to type
@@ -271,53 +294,24 @@ for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
-        tokenized_q = nltk.word_tokenize(question)
-        q_type = get_q_words_count(tokenized_q)
-        id_to_type[question_id] = q_type
-# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
-
-##Construct##
-for story_id in list(questions.keys()):
-    story_qa = questions[story_id]
-    story = stories[story_id]['TEXT']
-    tokenized_s = [token.text for token in nlp(story)]
-    for question_id in list(story_qa.keys()):
-        question = story_qa[question_id]['Question']
-        answer = story_qa[question_id]['Answer']  # this is a list
+        answers = story_qa[question_id]['Answer']
         tokenized_q = [token.text for token in nlp(question)]
-        q_type = id_to_type[question_id]
-        for a in answer:
-            doc = nlp(a)
-
-            # print("Named Entities: ", [[ent.text, ent.label_] for ent in doc.ents])
-            # print("Noun phrases: ", [nc.text for nc in doc.noun_chunks]) #todo not sure how to implement in best context so left out of dict
-            # print("Text as POS tags: ", [token.pos_ for token in doc])
-
-            for ent in doc.ents:
-                if ent.label_ not in q_2word_counts[q_type]['ENT']:
-                    q_2word_counts[q_type]['ENT'][ent.label_ ] = 1
-                else:
-                    q_2word_counts[q_type]['ENT'][ent.label_] += 1
-            for token in doc:
-                if  (not token.is_stop and not token.pos_=='SPACE') :
-                    tag = token.pos_
-                    
-                    if tag not in q_2word_counts[q_type]['POS']:
-                        q_2word_counts[q_type]['POS'][tag]=1
-
-                    else:
-                        q_2word_counts[q_type]['POS'][tag] += 1
+        nlp_a = [nlp(a) for a in answers]
+        q_type = get_q_words_count(tokenized_q, nlp_a)
+        id_to_type[question_id] = q_type
+get_avg_ans_len()
 
 
-# (TODO: hyperparameter k should be based on average answer length for that given question?)
-#######hyper parameters#######
+# (TODO: hyperparameter k should be based on average answer length for that given question type?)
+#######yper parameters#######
 k = 5
-weights = {"TEXT": 1, "POS": .1, "ENT": 1}
+weights = {"TEXT": .5, "POS": 1, "ENT": 1}
 filter_pos_tags = ['PUNCT', 'DET', 'SPACE', 'ADV', 'AUX', 'PRON', 'ADP']
+stop_words = set(stopwords.words('english'))
 ####################################
 
 
-######run#####################
+######run#######
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     story = stories[story_id]['TEXT']
@@ -344,6 +338,9 @@ for story_id in list(questions.keys()):
 
         vectorized_q = vectorize_list(filtered_q)
         vectorized_s = vectorize_list(filtered_s)
+
+        k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
+
         best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, k, q_type, weights)
         
         print(question)
