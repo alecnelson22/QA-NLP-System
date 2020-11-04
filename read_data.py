@@ -348,3 +348,9 @@ for story_id in list(questions.keys()):
         print('\n')
 
 
+
+
+#TODO: write function for getting entire context not filtered
+#function for output
+#cleanup k issue
+#check with scoring mechanism
