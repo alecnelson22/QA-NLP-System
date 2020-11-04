@@ -91,11 +91,6 @@ def load_QA(fname):
     return qa
 
 
-# Returns list of tuples (word, POS) given a string of text
-def get_POS_tags(text):
-    return nltk.pos_tag(text)
-
-
 # Grabs words k to the left and k to the right of word at target index t_idx
 def get_context_words(text, k, t_idx, split=False):
     if split:
@@ -177,29 +172,30 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
     best_context_weight = 0
     for t_idx in range(len(story)):
         context_words = get_context_words_span(story, k, t_idx) #context_words is a spacy doc
-        curr_context_weight=0
+        curr_context_weight = 0
 
         #word level comparisons
         for q_word in question:
             for s_word in context_words:
                 for w_type in weight_dict: 
                     if(w_type== 'TEXT'):
-                        curr_context_weight+= q_word.similarity(s_word)*weight_dict[w_type]
+                        curr_context_weight += q_word.similarity(s_word) * weight_dict[w_type]
                     elif(w_type=='POS'):
-                        curr_attr=attribute_dict[q_type][w_type]
+                        curr_attr = attribute_dict[q_type][w_type]
                         if(s_word in curr_attr):
-                            curr_context_weight+=curr_attr[s_word.pos_]*weight_dict[w_type]
-                    elif(w_type=='ENT'):
+                            curr_context_weight += curr_attr[s_word.pos_] * weight_dict[w_type]
+                    elif(w_type =='ENT'):
                         continue
                     else:
                         print("Attribute Type currently not supported")
+
         #context level comparisons
         if('ENT' in weight_dict):
-            entities= [ent.label_ for ent in context_words.ents]
-            curr_attr=attribute_dict[q_type]["ENT"]
+            entities = [ent.label_ for ent in context_words.ents]
+            curr_attr = attribute_dict[q_type]["ENT"]
             for ent in entities:
                 if ent in curr_attr:
-                   curr_context_weight+=curr_attr[ent]*weight_dict[w_type]
+                   curr_context_weight += curr_attr[ent] * weight_dict[w_type]
 
         # print(curr_context_weight)
         if curr_context_weight > best_context_weight:
@@ -211,14 +207,14 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
 
 # Removes any words with POS in filter tags from text, returns filtered text
 def filter_by_POS(text, filter_tags):
-    tagged_text = get_POS_tags(text)
+    # tagged_text = get_POS_tags(text)
+    tagged_text = [[token.text, token.pos_] for token in text]
     pos_text = [tagged[1] for tagged in tagged_text]
     word_text = [tagged[0] for tagged in tagged_text]
     filter_idxs = [idx for idx in range(len(pos_text)) if pos_text[idx] in filter_tags]
     filtered_text = [w for i, w in enumerate(word_text) if i not in filter_idxs]
     filtered_pos=[w for i, w in enumerate(pos_text) if i not in filter_idxs]
     return filtered_text, filtered_pos
-    # return filtered_text, filtered_pos
 
 
 def filter_by_stopwords(text, stopwords):
@@ -227,25 +223,11 @@ def filter_by_stopwords(text, stopwords):
 
 
 def vectorize_list(text):
-    str1 = ""  
-    
-    # traverse in the string   
+    str1 = ""
     for ele in text:  
-        str1 += ele+" "   
-    # print(str1)
-    vectorized=nlp(str1)
-    # print(vectorized)
+        str1 += ele+" "
+    vectorized = nlp(str1)
     return vectorized
-
-
-# Loop through all answers, determine semantic category
-def create_answer_categories():
-    pass
-
-
-# send any return value to existing question/answer dictionary
-def extract_question_word(question):
-    pass
 
 
 # finds what two word question phrases appear in our data and the number of times they occur
@@ -260,7 +242,6 @@ def get_q_words_count(tokenized):
                 q_2word_counts[q2]['ENT']= {}
                 # q_2word_counts[q2]['NP']= [] 
                 q_2word_counts[q2]['POS']= {}
-
             else:
                 q_2word_counts[q2]['Count'] += 1
             return q2
@@ -282,46 +263,41 @@ stop_words = set(stopwords.words('english'))
 
 #############Build Dictionary for Question Types#############
 
-##init##  (torin note: notice I had to add a few more)
+##init##
 q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
-q_2word_counts = {} #attribute dictionary
-id_to_type={} #link q to type
+q_2word_counts = {}  # attribute dictionary
+id_to_type = {}  # link q to type
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
         tokenized_q = nltk.word_tokenize(question)
-        q_type=get_q_words_count(tokenized_q)
-        # print(q_type)
-        id_to_type[question_id]=q_type
-
+        q_type = get_q_words_count(tokenized_q)
+        id_to_type[question_id] = q_type
 # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
 
 ##Construct##
-print(q_2word_counts)
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     story = stories[story_id]['TEXT']
-    tokenized_s = nltk.word_tokenize(story)
+    tokenized_s = [token.text for token in nlp(story)]
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
-        answer = story_qa[question_id]['Answer'] #this is a list
-        tokenized_q = nltk.word_tokenize(question)
-        q_type=id_to_type[question_id]
+        answer = story_qa[question_id]['Answer']  # this is a list
+        tokenized_q = [token.text for token in nlp(question)]
+        q_type = id_to_type[question_id]
         for a in answer:
             doc = nlp(a)
-            # print("Question: ", question)
-            # print("Answer: ", a)
+
             # print("Named Entities: ", [[ent.text, ent.label_] for ent in doc.ents])
             # print("Noun phrases: ", [nc.text for nc in doc.noun_chunks]) #todo not sure how to implement in best context so left out of dict
             # print("Text as POS tags: ", [token.pos_ for token in doc])
-            # print('\n')
 
             for ent in doc.ents:
                 if ent.label_ not in q_2word_counts[q_type]['ENT']:
-                    q_2word_counts[q_type]['ENT'][ent.label_ ]=1
+                    q_2word_counts[q_type]['ENT'][ent.label_ ] = 1
                 else:
-                    q_2word_counts[q_type]['ENT'][ent.label_]+=1
+                    q_2word_counts[q_type]['ENT'][ent.label_] += 1
             for token in doc:
                 if  (not token.is_stop and not token.pos_=='SPACE') :
                     tag = token.pos_
@@ -330,12 +306,14 @@ for story_id in list(questions.keys()):
                         q_2word_counts[q_type]['POS'][tag]=1
 
                     else:
-                        q_2word_counts[q_type]['POS'][tag]+=1
-print(q_2word_counts)
+                        q_2word_counts[q_type]['POS'][tag] += 1
 
+
+# (TODO: hyperparameter k should be based on average answer length for that given question?)
 #######hyper parameters#######
 k = 5
-weights={"TEXT":1, "POS":.1, "ENT":1}
+weights = {"TEXT": 1, "POS": .1, "ENT": 1}
+filter_pos_tags = ['PUNCT', 'DET', 'SPACE', 'ADV', 'AUX', 'PRON', 'ADP']
 ####################################
 
 
@@ -343,25 +321,18 @@ weights={"TEXT":1, "POS":.1, "ENT":1}
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     story = stories[story_id]['TEXT']
-    # print(story)
-    tokenized_s = nltk.word_tokenize(story)
+
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
-        answer = story_qa[question_id]['Answer'] #this is a list
-        tokenized_q = nltk.word_tokenize(question)
-        q_type=id_to_type[question_id]
+        answer = story_qa[question_id]['Answer']  # this is a list
+        q_type = id_to_type[question_id]
 
-        #TODO: clean up to remove nltk dep
-        filtered_q, filtered_q_pos = filter_by_POS(tokenized_q, ['DT', '.', ','])
-        filtered_s_text, filtered_s_pos = filter_by_POS(tokenized_s, ['DT', '.', ','])
-        
+        filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
+        filtered_s_text, filtered_s_pos = filter_by_POS(nlp(story), filter_pos_tags)
+
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
         filtered_s = filter_by_stopwords(filtered_s_text, stop_words)
-        # print(filtered_s)
-        vectorized_q = vectorize_list(filtered_q)
-        vectorized_s = vectorize_list(filtered_s)
 
-        best_context = get_best_context_w_weight(vectorized_s,vectorized_q,q_2word_counts,k,q_type,weights)
         # # Build synonym list for words in question
         # # TODO: clean this list
         # synonyms = []
@@ -370,11 +341,14 @@ for story_id in list(questions.keys()):
         #         for lemma in synset.lemmas():
         #             synonyms.append(lemma.name())
         # filtered_q.extend(synonyms)
+
+        vectorized_q = vectorize_list(filtered_q)
+        vectorized_s = vectorize_list(filtered_s)
+        best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, k, q_type, weights)
         
         print(question)
         print(story_qa[question_id]['Answer'])
         print(best_context)
-        print('here')
-    sadf
-#==========
+        print('\n')
+
 
