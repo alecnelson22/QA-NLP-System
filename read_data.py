@@ -354,3 +354,7 @@ for story_id in list(questions.keys()):
 #function for output
 #cleanup k issue
 #check with scoring mechanism
+#remove stop dep for nltk
+#remove wordnet dep
+#write install script
+#write README
