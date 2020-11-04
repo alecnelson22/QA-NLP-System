@@ -174,16 +174,15 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
     for t_idx in range(len(story)):
         context_words = get_context_words_span(story, k, t_idx)  # context_words is a spacy doc
         curr_context_weight = 0
-
         #word level comparisons
         for q_word in question:
             for s_word in context_words:
                 for w_type in weight_dict: 
-                    if(w_type== 'TEXT'):
+                    if(w_type == 'TEXT'):
                         curr_context_weight += q_word.similarity(s_word) * weight_dict[w_type]
-                    elif(w_type=='POS'):
+                    elif(w_type == 'POS'):
                         curr_attr = attribute_dict[q_type][w_type]
-                        if(s_word in curr_attr):
+                        if(s_word.pos_ in curr_attr):
                             curr_context_weight += curr_attr[s_word.pos_] * weight_dict[w_type]
                     elif(w_type =='ENT'):
                         continue
@@ -305,7 +304,7 @@ get_avg_ans_len()
 # (TODO: hyperparameter k should be based on average answer length for that given question type?)
 #######yper parameters#######
 k = 5
-weights = {"TEXT": .5, "POS": 1, "ENT": 1}
+weights = {"TEXT": .5, "POS": .1, "ENT": 1}
 filter_pos_tags = ['PUNCT', 'DET', 'SPACE', 'ADV', 'AUX', 'PRON', 'ADP']
 stop_words = set(stopwords.words('english'))
 ####################################
