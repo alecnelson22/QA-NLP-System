@@ -350,8 +350,15 @@ id_to_type = {}  # link q to type
 q_type_set=set()
 qtype_to_id={}
 qid_to_sid={}
+qid_to_vecq={}
+qid_to_answ={}
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
+    story = stories[story_id]['TEXT']
+
+    filtered_s_text, filtered_s_pos = filter_by_POS(nlp(story), filter_pos_tags)
+    filtered_s = filter_by_stopwords(filtered_s_text, stop_words)
+    vectorized_s = vectorize_list(filtered_s)
     for question_id in list(story_qa.keys()):
         question = story_qa[question_id]['Question']
         answers = story_qa[question_id]['Answer']
@@ -360,6 +367,32 @@ for story_id in list(questions.keys()):
         q_type = get_q_words_count(nlp(question), nlp_a)
         id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
         q_type_set.add(q_type)
+        filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
+
+        filtered_q = filter_by_stopwords(filtered_q, stop_words)
+
+        vectorized_q = vectorize_list(filtered_q)
+        vectorized_s = vectorize_list(filtered_s)
+        if q_type not in qtype_to_id:
+            qtype_to_id[q_type]=[]
+        qtype_to_id[q_type].append(question_id)
+        qid_to_sid[question_id]=vectorized_s
+        qid_to_vecq[question_id]=vectorized_q
+        correct_ans=story_qa[question_id]['Answer']
+        correct_filt=[]
+        for resp in correct_ans:
+            correct_filt.append(filter_by_POS(nlp(resp),['PUNCT', 'SPACE'])[0])
+        # print(correct_filt)
+        to_check=[]
+        for i,resp in enumerate(correct_filt):
+            to_check.append([])
+            for w in (resp):
+                # print('correct', w)
+                to_check[i].append(w.lower().strip())
+        # print(question)
+        # print(story_qa[question_id]['Answer'], to_check)
+        qid_to_answ[question_id]=to_check
+
 # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
 get_avg_ans_len()
 
@@ -379,7 +412,7 @@ for q2 in q_2word_counts.keys():
 best_params={} #per q id type
 for typ in q_type_set:
     if typ not in best_params:
-        best_params[typ]={"text_weight":[],"pos_weight":[], "ent_weight":[],'k':[],'bump_weight':[]}
+        best_params[typ]={"text_weight":0,"pos_weight":0, "ent_weight":0,'k':0,'bump_weight':0}
 
 # for typ in best_params:
 #     for wt in best_params[typ]:
@@ -393,61 +426,49 @@ best_params_per_story={}
 # for story_id in list(questions.keys()):
 #     best_params_per_story=best_params[typ]
 
-for story_id in list(questions.keys()):
-    story_qa = questions[story_id]
-    story = stories[story_id]['TEXT']
 
-    filtered_s_text, filtered_s_pos = filter_by_POS(nlp(story), filter_pos_tags)
-    filtered_s = filter_by_stopwords(filtered_s_text, stop_words)
-    for question_id in list(story_qa.keys()):
-        best_w_t=0
-        best_w_p=0
-        best_w_e=0
-        best_w_k=0
-        best_ofm=0
-        best_w_b=0
-        question = story_qa[question_id]['Question']
-        answer = story_qa[question_id]['Answer']  # this is a list
-        q_type, bump_word = get_q_type(nlp(question), q_words)
+        
+        # question = story_qa[question_id]['Question']
+        # answer = story_qa[question_id]['Answer']  # this is a list
+        # q_type, bump_word = get_q_type(nlp(question), q_words)
 
-        filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
+        # filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
 
-        filtered_q = filter_by_stopwords(filtered_q, stop_words)
+        # filtered_q = filter_by_stopwords(filtered_q, stop_words)
 
-        vectorized_q = vectorize_list(filtered_q)
-        vectorized_s = vectorize_list(filtered_s)
-        correct_ans=story_qa[question_id]['Answer']
-        correct_filt=[]
-        for resp in correct_ans:
+        # vectorized_q = vectorize_list(filtered_q)
+        # vectorized_s = vectorize_list(filtered_s)
+        
 
-            correct_filt.append(filter_by_POS(nlp(resp),['PUNCT', 'SPACE'])[0])
-        print(correct_filt)
-        to_check=[]
-        for i,resp in enumerate(correct_filt):
-            to_check.append([])
-            for w in (resp):
-                # print('correct', w)
-                to_check[i].append(w.lower().strip())
-        print(question)
-        print(story_qa[question_id]['Answer'], to_check)
-        for curr_weight_t in np.arange(.1,2.2,.5):
-            for curr_weight_p in np.arange(.1,2.2,.5):
-                for curr_weight_e in np.arange(.1,2.2,.5):
-                    for curr_k in range(1,6,1):
-                        for curr_b in np.arange(1,2.6,.5):
-                            
-                            # k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
+for qtype_i in qtype_to_id:
+    best_w_t=0
+    best_w_p=0
+    best_w_e=0
+    best_w_k=0
+    best_ofm=0
+    best_w_b=0 
+    best_fm_sum=0
+    print("for qtype",qtype_i)
+    for curr_weight_t in np.arange(.1,2.2,.5):
+        for curr_weight_p in np.arange(.1,2.2,.5):
+            for curr_weight_e in np.arange(.1,2.2,.5):
+                for curr_k in range(1,6,1):
+                    for curr_b in np.arange(1,2.6,.5):
+                        curr_fm_sum = 0
+                        for question_i in qtype_to_id[qtype_i]:
+                            vectorized_s=qid_to_sid[question_i]
+                            vectorized_q=qid_to_vecq[question_i]
 
-                            best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, q_type, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e},curr_b)
-                            
-                            
+                            best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e},curr_b)
+                            to_check=qid_to_answ[question_i]
+                    
                             # print(to_check)
                             best_fm_ind=0
                             best_fm=0
                             response=word_tokenize(best_context.text)
                             b_recall=0
                             b_prec=0
-                            for i,resp in enumerate(correct_ans):
+                            for i,resp in enumerate(to_check):
                                 correct=0
                                 cwords=set()
                                 for wrd in response:
@@ -470,31 +491,46 @@ for story_id in list(questions.keys()):
                                     best_fm_ind=i
                                     b_recall=recall
                                     b_prec=prec
-
-
+                            curr_fm_sum+=best_fm
+                            # print(curr_fm_sum)
+                ############done wit q loop###############
+                        if(curr_fm_sum>=best_fm_sum):
+                            best_w_t=curr_weight_t
+                            best_w_p=curr_weight_p
+                            best_w_e=curr_weight_e
+                            best_w_k=curr_k
+                            best_ofm=best_fm
+                            best_w_b=curr_b
+                            best_fm_sum=curr_fm_sum
+                            print('for weights', curr_weight_t, curr_weight_p, curr_weight_e,curr_k, curr_b)
+                            # print(best_context, response)
+                            print("fmeasure= ",best_fm_sum)
+                            print('\n')
                         
-
-                            if(best_fm>=best_ofm):
-                                best_w_t=curr_weight_t
-                                best_w_p=curr_weight_p
-                                best_w_e=curr_weight_e
-                                best_w_k=curr_k
-                                best_ofm=best_fm
-                                best_w_b=curr_b
-
-                                print('for weights', curr_weight_t, curr_weight_p, curr_weight_e,curr_k, curr_b)
-                                print(best_context, response)
-                                print("fmeasure= ",best_fm, 'rec ', b_recall, 'prec ',b_prec )
-                                print('\n')
-        best_params[q_type]["text_weight"].append(best_w_t)
-        best_params[q_type]["pos_weight"].append(best_w_p)
-        best_params[q_type]["ent_weight"].append(best_w_e)
-        best_params[q_type]["k"].append(best_w_k)
-        best_params[q_type]["bump_weight"].append(best_w_b)
-
-        print("DONE WITH Q",best_params)
-        
-    print("DONE WIT STORY",story_id)
+                    
+                
+            
+     #####done_with_qtype_loop###########  
+   
+    best_params[qtype_i]["text_weight"]=(best_w_t)
+    best_params[qtype_i]["pos_weight"]=(best_w_p)
+    best_params[qtype_i]["ent_weight"]=(best_w_e)
+    best_params[qtype_i]["k"]=(best_w_k)
+    best_params[qtype_i]["bump_weight"]=(best_w_b)
+    try: 
+        f = open('best_params', 'wb') 
+        pickle.dump(best_params, f) 
+        f.close()
+    except: 
+        print("Something went wrong")
+    print("DONE WITH Q")
+    print('for type',qtype_i)
+    # print(best_context, response)
+    print("overall best fmeasure= ",best_fm_sum, 'num of qs', len(qtype_to_id[qtype_i]))
+    if len(qtype_to_id[qtype_i])>0:
+        print('ave', best_fm_sum/len(qtype_to_id[qtype_i])) 
+    
+print('done')
     
 averages={}
 for typ in best_params:
