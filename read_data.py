@@ -263,7 +263,7 @@ def get_q_words_count(tokenized_q, nlp_a):
                             q_2word_counts[q2]['POS'][tag] = 1
                         else:
                             q_2word_counts[q2]['POS'][tag] += 1
-    return q2
+            return q2
 
 
 def get_avg_ans_len():
@@ -273,20 +273,29 @@ def get_avg_ans_len():
 # ===========================
 # ===========================
 
-
 #######Load Data#######
 stories = {}
 questions = {}
 for fname in os.listdir(os.getcwd() + '/data'):
-        id = fname.split('.')[0]
-        story_data = load_story('data/' + id + '.story')
-        question_data = load_QA('data/' + id + '.answers')
-        stories[id] = story_data
+    id = fname.split('.')[0]
+    story_data = load_story('data/' + id + '.story')
+    question_data = load_QA('data/' + id + '.answers')
+    stories[id] = story_data
+    questions[id] = question_data
+for fname in os.listdir(os.getcwd() + '/extra-data'):
+    if '.answers' in fname:
+        id = fname.split('.answers')[0]
+        question_data = load_QA('extra-data/' + id + '.answers')
         questions[id] = question_data
+    else:
+        id = fname.split('.story')[0]
+        story_data = load_story('extra-data/' + id + '.story')
+        stories[id] = story_data
+
 
 
 #######Build Dictionary for Question Types#######
-q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
+q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did']
 q_2word_counts = {}  # attribute dictionary
 id_to_type = {}  # link q to type
 for story_id in list(questions.keys()):
