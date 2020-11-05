@@ -9,6 +9,7 @@ import spacy
 import os
 
 
+# nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
 nlp = spacy.load("en_core_web_md")  # make sure to use larger model!
 # nlp = spacy.load("en_core_web_sm")  # make sure to use larger model!
 
@@ -232,21 +233,71 @@ def vectorize_list(text):
 
 # finds what two word question phrases appear in our data and the number of times they occur
 # returns dict of form {two word phrase: count, ...}
-def get_q_words_count(tokenized_q, nlp_a):
+def get_q_words_count(nlp_q, nlp_a):
+    tokenized_q = [token.text for token in nlp_q]
     tokenized_a = [[token.text for token in a] for a in nlp_a]
     a_lens = [len(a) for a in tokenized_a]
-    # a_avg_len = math.ceil(np.mean(a_lens))
     for i, w in enumerate(tokenized_q):
         if w.lower() in q_words:
-            q2 = w.lower() + ' ' + tokenized_q[i + 1]
+
+            # I started going through the question types one-by one and recognizing some special cases
+            # Here I outline those cases, while also clustering the question types into broader categories
+            if w.lower() == 'what':
+                if nlp_q[i + 1].pos_ == 'NOUN':
+                    # Extra weight/more emphasis should be placed on this NOUN
+                    # ex) what color?  green.
+                    pass
+                elif nlp_q[i + 1].pos_ == 'VERB':
+                    # Extra weight/more emphasis should be placed on this VERB
+                    # ex) what walks?  animals walk.
+                    pass
+                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+            elif w.lower() == 'who':
+                if nlp_q[i + 1].pos_ == 'VERB':
+                    # Extra weight/more emphasis should be placed on this VERB
+                    # Who ran?  John ran.
+                    pass
+                elif nlp_q[i + 1].text == 'is':
+                    # Do something special here?
+                    pass
+                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+            elif w.lower() == 'which':
+                if nlp_q[i + 1].pos_ == 'NOUN':
+                    # Extra weight/more emphasis should be placed on this NOUN
+                    # ex) which day?  Monday.
+                    pass
+                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+            elif w.lower() == 'whose':
+                if nlp_q[i + 1].pos_ == 'NOUN':
+                    # Extra weight/more emphasis should be placed on this NOUN
+                    # ex) whose house?  John's house.
+                    pass
+                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+            # I went through each of these, I don't think anything needs to be done
+            # Keeping them like this for the time being in case we want to add any special rules
+            elif w.lower() == 'how':
+                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+            elif w.lower() == 'when':
+                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+            elif w.lower() == 'where':
+                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+            elif w.lower() == 'why':
+                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                # print(w.lower() + ' ' + nlp_q[i + 1].text + ' (' + nlp_q[i + 1].pos_ + ')')
+
+            else:
+                q2 = w.lower() + ' ' + tokenized_q[i + 1]
+
             if q2 not in list(q_2word_counts.keys()):
+                # q_2word_counts[q2] = 1
                 q_2word_counts[q2] = {}
                 q_2word_counts[q2]['Count'] = 1
                 q_2word_counts[q2]['ENT'] = {}
-                # q_2word_counts[q2]['NP']= [] 
+                # q_2word_counts[q2]['NP']= []
                 q_2word_counts[q2]['POS'] = {}
                 q_2word_counts[q2]['Avg Ans Len'] = a_lens  # Count lengths for now, take average at the end
             else:
+                # q_2word_counts[q2] += 1
                 q_2word_counts[q2]['Count'] += 1
                 q_2word_counts[q2]['Avg Ans Len'].extend(a_lens)
 
@@ -269,6 +320,16 @@ def get_q_words_count(tokenized_q, nlp_a):
 def get_avg_ans_len():
     for q_type in q_2word_counts.keys():
         q_2word_counts[q_type]['Avg Ans Len'] = math.ceil(np.mean(q_2word_counts[q_type]['Avg Ans Len']))
+
+
+# filters words that are not verbs and not proper nouns
+def get_verbs(text):
+    pos = [token.pos_ for token in text]
+    filtered = [token for token in text if token.pos_ is 'VERB']
+    if len(filtered) == 0:
+        print('stop')
+    return filtered
+
 
 # ===========================
 # ===========================
@@ -295,7 +356,8 @@ for fname in os.listdir(os.getcwd() + '/extra-data'):
 
 
 #######Build Dictionary for Question Types#######
-q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did']
+q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
+# q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did']
 q_2word_counts = {}  # attribute dictionary
 id_to_type = {}  # link q to type
 for story_id in list(questions.keys()):
@@ -305,12 +367,12 @@ for story_id in list(questions.keys()):
         answers = story_qa[question_id]['Answer']
         tokenized_q = [token.text for token in nlp(question)]
         nlp_a = [nlp(a) for a in answers]
-        q_type = get_q_words_count(tokenized_q, nlp_a)
+        q_type = get_q_words_count(nlp(question), nlp_a)
         id_to_type[question_id] = q_type
+# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
 get_avg_ans_len()
 
 
-# (TODO: hyperparameter k should be based on average answer length for that given question type?)
 #######yper parameters#######
 k = 5
 weights = {"TEXT": .5, "POS": .1, "ENT": 1}
@@ -330,10 +392,10 @@ for story_id in list(questions.keys()):
         q_type = id_to_type[question_id]
 
         filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
-        filtered_s_text, filtered_s_pos = filter_by_POS(nlp(story), filter_pos_tags)
+        # filtered_s_text, filtered_s_pos = filter_by_POS(nlp(story), filter_pos_tags)
 
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
-        filtered_s = filter_by_stopwords(filtered_s_text, stop_words)
+        # filtered_s = filter_by_stopwords(filtered_s_text, stop_words)
 
         # # Build synonym list for words in question
         # # TODO: clean this list
@@ -345,11 +407,11 @@ for story_id in list(questions.keys()):
         # filtered_q.extend(synonyms)
 
         vectorized_q = vectorize_list(filtered_q)
-        vectorized_s = vectorize_list(filtered_s)
+        # vectorized_s = vectorize_list(filtered_s)
 
         k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
 
-        best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, k, q_type, weights)
+        best_context = get_best_context_w_weight(nlp(story), vectorized_q, q_2word_counts, k, q_type, weights)
         
         print(question)
         print(story_qa[question_id]['Answer'])
