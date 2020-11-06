@@ -146,7 +146,7 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
                     if(w_type == 'TEXT'):
 
                         if q_word.text == bump_word and q_word.similarity(s_word) > .75:
-                            b_weight = bump_weight
+                            b_weight = weight_dict["BUMP"]
                         else:
                             b_weight = 1
 
@@ -160,7 +160,7 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
                     elif(w_type =='ENT'):
                         continue
                     else:
-                        print("Attribute Type currently not supported")
+                        continue
 
         #context level comparisons
         if('ENT' in weight_dict):
@@ -308,6 +308,9 @@ def get_q_type(question, q_words):
             if q_2word_counts[q_type]['Inc Sim Weight']:
                 bump_word = question[i + 1].text
             return q_type, bump_word
+        else:
+            return "",""
+
 
 # ===========================
 # ===========================
@@ -352,6 +355,7 @@ qtype_to_id={}
 qid_to_sid={}
 qid_to_vecq={}
 qid_to_answ={}
+qid_to_bump={}
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     story = stories[story_id]['TEXT']
@@ -370,9 +374,11 @@ for story_id in list(questions.keys()):
         filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
 
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
-
+        _,bump=  get_q_type(nlp(question), q_words) #        q_type, bump_word = get_q_type(nlp(question), q_words)
+        qid_to_bump[question_id]=bump
         vectorized_q = vectorize_list(filtered_q)
         vectorized_s = vectorize_list(filtered_s)
+        # print(question)
         if q_type not in qtype_to_id:
             qtype_to_id[q_type]=[]
         qtype_to_id[q_type].append(question_id)
@@ -441,6 +447,7 @@ best_params_per_story={}
         
 
 for qtype_i in qtype_to_id:
+    print("length of set is ", len(qtype_to_id[qtype_i]))
     best_w_t=0
     best_w_p=0
     best_w_e=0
@@ -448,18 +455,22 @@ for qtype_i in qtype_to_id:
     best_ofm=0
     best_w_b=0 
     best_fm_sum=0
+    j=0
     print("for qtype",qtype_i)
-    for curr_weight_t in np.arange(.1,2.2,.5):
-        for curr_weight_p in np.arange(.1,2.2,.5):
-            for curr_weight_e in np.arange(.1,2.2,.5):
-                for curr_k in range(1,6,1):
-                    for curr_b in np.arange(1,2.6,.5):
+    for curr_weight_t in [1.0,1.5,2.0]:
+        for curr_weight_p in [1.0,1.5,2.0]:
+            for curr_weight_e in [1.0,1.5,2.0]:
+                for curr_k in range(2,6,1):
+                    for curr_b in [1.0,2.0,3.0]:
                         curr_fm_sum = 0
+                        # print('for type ',qtype_i, curr_weight_t, curr_weight_p, curr_weight_e,curr_k, curr_b)
+                        print('percent done per qtype: ', (j/324.0)*100)
+                        j+=1
                         for question_i in qtype_to_id[qtype_i]:
                             vectorized_s=qid_to_sid[question_i]
                             vectorized_q=qid_to_vecq[question_i]
 
-                            best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e},curr_b)
+                            best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b},qid_to_bump[question_id])
                             to_check=qid_to_answ[question_i]
                     
                             # print(to_check)
@@ -518,7 +529,7 @@ for qtype_i in qtype_to_id:
     best_params[qtype_i]["k"]=(best_w_k)
     best_params[qtype_i]["bump_weight"]=(best_w_b)
     try: 
-        f = open('best_params', 'wb') 
+        f = open('tuned_weights_long', 'wb') 
         pickle.dump(best_params, f) 
         f.close()
     except: 
@@ -543,7 +554,7 @@ for typ in best_params:
             averages[typ][wtyp]=round(average, 3)
 print(averages)  
 try: 
-    f = open('tuned_weights', 'wb') 
+    f = open('tuned_weights_long', 'wb') 
     pickle.dump(averages, f) 
     f.close() 
   
