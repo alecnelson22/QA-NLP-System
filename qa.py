@@ -46,7 +46,7 @@ def load_QA(fname):
             l = line.strip('\n').split(':')
             if len(l) > 0:
                 if 'QuestionID' in line:
-                    q_id = l[1]
+                    q_id = l[1].strip()
                     qa_list.append(q_id)
                 elif 'Question:' in line:
                     q = l[1]
@@ -138,6 +138,7 @@ def get_best_context_w_pos(story, story_pos, question, question_pos,k):
 #input: story & q are spacy objs. q_type is the question type, weight dict defines how to distubute weights among attributes
 def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight_dict, bump_word):
     best_context_weight = 0
+    best_context=get_context_words_span(story, k, 0)
     for t_idx in range(len(story)):
         context_words = get_context_words_span(story, k, t_idx)  # context_words is a spacy doc
         curr_context_weight = 0
@@ -148,7 +149,7 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
                     if(w_type == 'TEXT'):
 
                         if q_word.text == bump_word and q_word.similarity(s_word) > .75:
-                            b_weight = bump_weight
+                            b_weight = weight_dict["BUMP"]
                         else:
                             b_weight = 1
 
@@ -162,7 +163,7 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
                     elif(w_type =='ENT'):
                         continue
                     else:
-                        print("Attribute Type currently not supported")
+                        continue
 
         #context level comparisons
         if('ENT' in weight_dict):
@@ -176,7 +177,7 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
         if curr_context_weight > best_context_weight:
             best_context_weight = curr_context_weight
             best_context = context_words
-    print(best_context_weight)
+    # print(best_context_weight)
     return best_context
 
 
@@ -337,8 +338,9 @@ for fname in os.listdir(os.getcwd() + '/data'):
 
 #######yper parameters#######
 # k = 5
-weights = {"TEXT": .1, "POS": .5, "ENT": 1}
-bump_weight = 2  # == 1 does nothing, should be greater than 1
+default_weights = {"TEXT": 3, "POS": 1, "ENT": 3,"BUMP":3}
+default_k=4
+# bump_weight = 2  # == 1 does nothing, should be greater than 1
 # q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did', 'are']  # couple weird ones here
 ####################################
 filter_pos_tags = ['PUNCT', 'DET', 'SPACE', 'ADV', 'AUX', 'PRON', 'ADP']
@@ -372,8 +374,7 @@ for q2 in q_2word_counts.keys():
         for item in q_2word_counts[q2][k].keys():
             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
 
-
-######run#######
+#######LOAD INPUT FOR TESTING #################
 
 test_stories={}
 test_questions={}
@@ -397,7 +398,7 @@ for l in fn:
     test_stories[id]=story_data
     fta=(wdir+id+".answers")
     q_data, lst=load_QA(fta)
-    test_questions[id]=question_data
+    test_questions[id]=q_data
     ordered_ids.append(id)
     ordered_qs[id]=lst
     
@@ -406,6 +407,9 @@ fn.close()
 
 
 outputs=[]
+loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
+
+######run#######
 
 for story_id in ordered_ids:
     story_qa = test_questions[story_id]
@@ -428,19 +432,22 @@ for story_id in ordered_ids:
         vectorized_s = vectorize_list(filtered_s)
 
         k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
-
-        best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, k, q_type, weights, bump_word)
+        used_weights=default_weights
+        if q_type in loaded_weights:
+            used_weights=loaded_weights[q_type]
+        best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, k, q_type, used_weights, bump_word)
         
         # print(question)
         # print(story_qa[question_id]['Answer'])
         # print(best_context)
         # print('\n')
-        outputs.append(question_id, best_context)
+        outputs.append([question_id, best_context])
 
 
 for output in outputs:
     print('QuestionID: ' ,output[0])
     print('Answer: ', output[1])
+    print('\n')
 
 
 #TODO: write function for getting entire context not filtered
