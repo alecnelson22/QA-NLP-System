@@ -9,8 +9,8 @@ import spacy
 import os
 import sys
 
-# nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
-nlp = spacy.load("en_core_web_md")  # make sure to use larger model!
+nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
+# nlp = spacy.load("en_core_web_md")  # make sure to use larger model!
 # nlp = spacy.load("en_core_web_sm")  # make sure to use larger model!
 
 input_file_name=sys.argv[1]
@@ -324,7 +324,7 @@ for fname in os.listdir(os.getcwd() + '/data'):
     question_data, _ = load_QA('data/' + id + '.answers')
     stories[id] = story_data
     questions[id] = question_data
-    print(id)
+    # print(id)
 # for fname in os.listdir(os.getcwd() + '/extra-data'):
 #     if '.answers' in fname:
 #         id = fname.split('.answers')[0]
@@ -416,6 +416,7 @@ for story_id in ordered_ids:
     story = test_stories[story_id]['TEXT']
 
     for question_id in ordered_qs[story_id]:
+        # print("storyid"+story_id)
         question = story_qa[question_id]['Question']
         answer = story_qa[question_id]['Answer']  # this is a list
         # q_type = id_to_type[question_id]  # TO DO: This takes information from a pre-processing step, thus should be removed
@@ -434,21 +435,23 @@ for story_id in ordered_ids:
         # k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
         used_weights=default_weights
         if q_type in loaded_weights:
-            if loaded_weights[q_type]["TEXT"]:
+            if loaded_weights[q_type]["TEXT"]>0:
                 used_weights=loaded_weights[q_type]
+                print('using tunedweigt', file=sys.stderr)
         best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, used_weights["K"], q_type, used_weights, bump_word)
         
-        # print(question)
-        # print(story_qa[question_id]['Answer'])
-        # print(best_context)
-        # print('\n')
-        outputs.append([question_id, best_context])
+        print(question,file=sys.stderr)
+        print(story_qa[question_id]['Answer'],file=sys.stderr)
+        print(best_context,file=sys.stderr)
+        print('\n',file=sys.stderr)
+        print('QuestionID: '+question_id)
+        print('Answer: ' + best_context.text + "\n")
+#         outputs.append([question_id, best_context])
 
 
-for output in outputs:
-    print('QuestionID: ' ,output[0])
-    print('Answer: ', output[1])
-    print('\n')
+# for output in outputs:
+#     print('QuestionID: '+output[0])
+#     print('Answer: ' + output[1] + "\n")
 
 
 #TODO: write function for getting entire context not filtered
