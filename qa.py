@@ -146,29 +146,29 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
         for q_word in question:
             for s_word in context_words:
                 for w_type in weight_dict: 
-                    if(w_type == 'TEXT'):
+                    if(w_type == 'text_weight'):
 
                         if q_word.text == bump_word and q_word.similarity(s_word) > .75:
-                            b_weight = weight_dict["BUMP"]
+                            b_weight = weight_dict["bump_weight"]
                         else:
                             b_weight = 1
 
                         curr_context_weight += q_word.similarity(s_word) * weight_dict[w_type] * b_weight
                         # curr_context_weight += (q_word.similarity(s_word) * weight_dict[w_type])
 
-                    elif(w_type == 'POS'):
+                    elif(w_type == 'pos_weight'):
                         curr_attr = attribute_dict[q_type][w_type]
                         if(s_word.pos_ in curr_attr):
                             curr_context_weight += curr_attr[s_word.pos_] * weight_dict[w_type]
-                    elif(w_type =='ENT'):
+                    elif(w_type =='ent_weight'):
                         continue
                     else:
                         continue
 
         #context level comparisons
-        if('ENT' in weight_dict):
+        if('ent_weight' in weight_dict):
             entities = [ent.label_ for ent in context_words.ents]
-            curr_attr = attribute_dict[q_type]["ENT"]
+            curr_attr = attribute_dict[q_type]["ent_weight"]
             for ent in entities:
                 if ent in curr_attr:
                    curr_context_weight += curr_attr[ent] * weight_dict[w_type]
@@ -338,7 +338,7 @@ for fname in os.listdir(os.getcwd() + '/data'):
 
 #######yper parameters#######
 # k = 5
-default_weights = {"TEXT": 3, "POS": 1, "ENT": 3,"BUMP":3}
+default_weights = {"text_weight": 3, "pos_weight": 1, "ent_weight": 3,"bump_weight":3}
 default_k=4
 # bump_weight = 2  # == 1 does nothing, should be greater than 1
 # q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did', 'are']  # couple weird ones here
@@ -434,7 +434,8 @@ for story_id in ordered_ids:
         k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
         used_weights=default_weights
         if q_type in loaded_weights:
-            used_weights=loaded_weights[q_type]
+            if loaded_weights[q_type]["text_weight"]!=0:
+                used_weights=loaded_weights[q_type]
         best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, k, q_type, used_weights, bump_word)
         
         # print(question)
