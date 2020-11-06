@@ -324,15 +324,15 @@ for fname in os.listdir(os.getcwd() + '/data'):
     question_data = load_QA('data/' + id + '.answers')
     stories[id] = story_data
     questions[id] = question_data
-for fname in os.listdir(os.getcwd() + '/extra-data'):
-    if '.answers' in fname:
-        id = fname.split('.answers')[0]
-        question_data = load_QA('extra-data/' + id + '.answers')
-        questions[id] = question_data
-    else:
-        id = fname.split('.story')[0]
-        story_data = load_story('extra-data/' + id + '.story')
-        stories[id] = story_data
+# for fname in os.listdir(os.getcwd() + '/extra-data'):
+#     if '.answers' in fname:
+#         id = fname.split('.answers')[0]
+#         question_data = load_QA('extra-data/' + id + '.answers')
+#         questions[id] = question_data
+#     else:
+#         id = fname.split('.story')[0]
+#         story_data = load_story('extra-data/' + id + '.story')
+#         stories[id] = story_data
 
 
 #######yper parameters#######
@@ -445,6 +445,10 @@ best_params_per_story={}
         # vectorized_q = vectorize_list(filtered_q)
         # vectorized_s = vectorize_list(filtered_s)
         
+print(q_type_set)
+A = list(q_type_set)[:len(q_type_set)//3]
+B = list(q_type_set)[len(q_type_set)//3:len(q_type_set)//3]
+C = list(q_type_set)[len(q_type_set)//3:]
 
 for qtype_i in qtype_to_id:
     print("length of set is ", len(qtype_to_id[qtype_i]))
@@ -457,14 +461,22 @@ for qtype_i in qtype_to_id:
     best_fm_sum=0
     j=0
     print("for qtype",qtype_i)
-    for curr_weight_t in [1.0,1.5,2.0]:
-        for curr_weight_p in [1.0,1.5,2.0]:
-            for curr_weight_e in [1.0,1.5,2.0]:
-                for curr_k in range(2,6,1):
-                    for curr_b in [1.0,2.0,3.0]:
+    if qtype_i not in A:
+        print('passing')
+        continue
+
+
+    if qtype_i == "where AUX" or qtype_i== "what AUX" or qtype_i == "who AUX" or qtype_i =="who VERB":
+        print('passing')
+        continue
+    for curr_weight_t in [2.0, 3.0, 6.0]:
+        for curr_weight_p in [1.0]:
+            for curr_weight_e in [2.0, 3.0, 6.0]:
+                for curr_k in range(3,6,1):
+                    for curr_b in [3.0, 6.0]:
                         curr_fm_sum = 0
                         # print('for type ',qtype_i, curr_weight_t, curr_weight_p, curr_weight_e,curr_k, curr_b)
-                        print('percent done per qtype: ', (j/324.0)*100)
+                        print('percent done per qtype: ', (j/27.0)*100)
                         j+=1
                         for question_i in qtype_to_id[qtype_i]:
                             vectorized_s=qid_to_sid[question_i]
@@ -529,7 +541,7 @@ for qtype_i in qtype_to_id:
     best_params[qtype_i]["k"]=(best_w_k)
     best_params[qtype_i]["bump_weight"]=(best_w_b)
     try: 
-        f = open('tuned_weights_long', 'wb') 
+        f = open('tuned_weights_shortf', 'wb') 
         pickle.dump(best_params, f) 
         f.close()
     except: 
@@ -554,7 +566,7 @@ for typ in best_params:
             averages[typ][wtyp]=round(average, 3)
 print(averages)  
 try: 
-    f = open('tuned_weights_long', 'wb') 
+    f = open('tuned_weights_shortf', 'wb') 
     pickle.dump(averages, f) 
     f.close() 
   

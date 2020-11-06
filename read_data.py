@@ -1,9 +1,9 @@
 import numpy as np
 import nltk
 import math
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.corpus import wordnet
+# from nltk.corpus import stopwords
+# from nltk.tokenize import word_tokenize
+# from nltk.corpus import wordnet
 
 import spacy
 import os
@@ -338,7 +338,7 @@ bump_weight = 2  # == 1 does nothing, should be greater than 1
 # q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did', 'are']  # couple weird ones here
 ####################################
 filter_pos_tags = ['PUNCT', 'DET', 'SPACE', 'ADV', 'AUX', 'PRON', 'ADP']
-stop_words = set(stopwords.words('english'))
+stop_words = nlp.Defaults.stop_words
 q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 ####################################
 
