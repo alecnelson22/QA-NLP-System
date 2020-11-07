@@ -4,7 +4,7 @@ import math
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.corpus import wordnet
-
+import sys
 import spacy
 import os
 from statistics import mean
@@ -318,21 +318,21 @@ def get_q_type(question, q_words):
 #######Load Data#######
 stories = {}
 questions = {}
-for fname in os.listdir(os.getcwd() + '/data'):
-    id = fname.split('.')[0]
-    story_data = load_story('data/' + id + '.story')
-    question_data = load_QA('data/' + id + '.answers')
-    stories[id] = story_data
-    questions[id] = question_data
-# for fname in os.listdir(os.getcwd() + '/extra-data'):
-#     if '.answers' in fname:
-#         id = fname.split('.answers')[0]
-#         question_data = load_QA('extra-data/' + id + '.answers')
-#         questions[id] = question_data
-#     else:
-#         id = fname.split('.story')[0]
-#         story_data = load_story('extra-data/' + id + '.story')
-#         stories[id] = story_data
+# for fname in os.listdir(os.getcwd() + '/data'):
+#     id = fname.split('.')[0]
+#     story_data = load_story('data/' + id + '.story')
+#     question_data = load_QA('data/' + id + '.answers')
+#     stories[id] = story_data
+#     questions[id] = question_data
+for fname in os.listdir(os.getcwd() + '/extra-data'):
+    if '.answers' in fname:
+        id = fname.split('.answers')[0]
+        question_data = load_QA('extra-data/' + id + '.answers')
+        questions[id] = question_data
+    else:
+        id = fname.split('.story')[0]
+        story_data = load_story('extra-data/' + id + '.story')
+        stories[id] = story_data
 
 
 #######yper parameters#######
@@ -450,7 +450,7 @@ A = list(q_type_set)[:len(q_type_set)//3]
 B = list(q_type_set)[len(q_type_set)//3:len(q_type_set)//3]
 C = list(q_type_set)[len(q_type_set)//3:]
 
-to_use_qtype=["where ADP","what ADJ", "how VERB","when PRON","how ADJ"]
+to_use_qtype=["where AUX","what AUX", "who AUX","who VERB"]
 for qtype_i in to_use_qtype:
     print("length of set is ", len(qtype_to_id[qtype_i]))
     best_w_t=0
@@ -461,7 +461,7 @@ for qtype_i in to_use_qtype:
     best_w_b=0 
     best_fm_sum=0
     j=0
-    # print("for qtype",qtype_i)
+    print("for qtype",qtype_i)
     # if qtype_i not in A: ## if th q type is not in the part of the set we're looking at we want to ignore it
     #     print('passing')
     #     continue
@@ -470,14 +470,14 @@ for qtype_i in to_use_qtype:
     # if qtype_i == "where AUX" or qtype_i== "what AUX" or qtype_i == "who AUX" or qtype_i =="who VERB":
     #     print('passing')
     #     continue
-    for curr_weight_t in [2.0, 3.0, 6.0]:
-        for curr_weight_p in [1.0]:
-            for curr_weight_e in [2.0, 3.0, 6.0]:
-                for curr_k in range(3,6,1):
-                    for curr_b in [3.0, 6.0]:
+    for curr_weight_t in [1,3,5,7]:
+        for curr_weight_p in [1,3,5,7]:
+            for curr_weight_e in [1,3,5,7]:
+                for curr_k in range(3,5,1):
+                    for curr_b in [1]:
                         curr_fm_sum = 0
                         # print('for type ',qtype_i, curr_weight_t, curr_weight_p, curr_weight_e,curr_k, curr_b)
-                        print('percent done per qtype: ', (j/27.0)*100)
+                        print('percent done per qtype: ', (j/128.0)*100)
                         j+=1
                         for question_i in qtype_to_id[qtype_i]:
                             vectorized_s=qid_to_sid[question_i]
@@ -526,6 +526,9 @@ for qtype_i in to_use_qtype:
                             best_ofm=best_fm
                             best_w_b=curr_b
                             best_fm_sum=curr_fm_sum
+                            # print(question,file=sys.stderr)
+                            # print(story_qa[question_id]['Answer'],file=sys.stderr)
+                            # print(best_context,file=sys.stderr)
                             print('for weights', curr_weight_t, curr_weight_p, curr_weight_e,curr_k, curr_b)
                             # print(best_context, response)
                             print("fmeasure= ",best_fm_sum)
@@ -542,7 +545,7 @@ for qtype_i in to_use_qtype:
     best_params[qtype_i]["k"]=(best_w_k)
     best_params[qtype_i]["bump_weight"]=(best_w_b)
     try: 
-        f = open('tuned_weights_shortd', 'wb') 
+        f = open('tuned_weights_long_new', 'wb') 
         pickle.dump(best_params, f) 
         f.close()
     except: 

@@ -84,10 +84,10 @@ def get_context_words(text, k, t_idx, split=False):
 
 def get_context_words_span(text, k, t_idx):
     start=t_idx-k
-    end=t_idx+k+1
+    end=t_idx+k
     if(t_idx-k<0):
         start=0
-    if(t_idx+k+1>len(text)):
+    if(t_idx+k>len(text)):
         end=len(text)
 
     words= text[start:end]
@@ -157,9 +157,10 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
                         # curr_context_weight += (q_word.similarity(s_word) * weight_dict[w_type])
 
                     elif(w_type == 'POS'):
-                        curr_attr = attribute_dict[q_type][w_type]
-                        if(s_word.pos_ in curr_attr):
-                            curr_context_weight += curr_attr[s_word.pos_] * weight_dict[w_type]
+                        if (q_type in attribute_dict):
+                            curr_attr = attribute_dict[q_type][w_type]
+                            if(s_word.pos_ in curr_attr):
+                                curr_context_weight += curr_attr[s_word.pos_] * weight_dict[w_type]
                     elif(w_type =='ENT'):
                         continue
                     else:
@@ -168,16 +169,19 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
         #context level comparisons
         if('ENT' in weight_dict):
             entities = [ent.label_ for ent in context_words.ents]
-            curr_attr = attribute_dict[q_type]["ENT"]
-            for ent in entities:
-                if ent in curr_attr:
-                   curr_context_weight += curr_attr[ent] * weight_dict[w_type]
+            if q_type in attribute_dict:
+                curr_attr = attribute_dict[q_type]["ENT"]
+                # print(curr_attr, file=sys.stderr)
+                for ent in entities:
+                    if ent in curr_attr:
+                        # print(ent, file=sys.stderr)
+                        curr_context_weight += curr_attr[ent] * weight_dict[w_type]
 
         # print(curr_context_weight)
         if curr_context_weight > best_context_weight:
             best_context_weight = curr_context_weight
             best_context = context_words
-    # print(best_context_weight)
+    # print(best_context_weight, file=sys.stderr)
     return best_context
 
 
@@ -311,6 +315,8 @@ def get_q_type(question, q_words):
             if q_2word_counts[q_type]['Inc Sim Weight']:
                 bump_word = question[i + 1].text
             return q_type, bump_word
+        else:
+            return "",""
 
 # ===========================
 # ===========================
@@ -325,27 +331,31 @@ for fname in os.listdir(os.getcwd() + '/data'):
     stories[id] = story_data
     questions[id] = question_data
     # print(id)
-# for fname in os.listdir(os.getcwd() + '/extra-data'):
-#     if '.answers' in fname:
-#         id = fname.split('.answers')[0]
-#         question_data, _ = load_QA('extra-data/' + id + '.answers')
-#         questions[id] = question_data
-#     else:
-#         id = fname.split('.story')[0]
-#         story_data = load_story('extra-data/' + id + '.story')
-#         stories[id] = story_data
+for fname in os.listdir(os.getcwd() + '/extra-data'):
+    if '.answers' in fname:
+        id = fname.split('.answers')[0]
+        question_data, _ = load_QA('extra-data/' + id + '.answers')
+        questions[id] = question_data
+    else:
+        id = fname.split('.story')[0]
+        story_data = load_story('extra-data/' + id + '.story')
+        stories[id] = story_data
 
 
 #######yper parameters#######
 # k = 5
-default_weights = {"TEXT": 3, "POS": 1, "ENT": 3,"BUMP":3, 'K':4}
+default_weights = {"TEXT": 2, "POS": 1, "ENT": 2,"BUMP":3, 'K':2}
 # default_k=4
 # bump_weight = 2  # == 1 does nothing, should be greater than 1
 # q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did', 'are']  # couple weird ones here
 ####################################
-filter_pos_tags = ['PUNCT', 'DET', 'SPACE', 'ADV', 'AUX', 'PRON', 'ADP']
+filter_pos_tags = ['PUNCT', 'DET', 'SPACE']
+# filter_pos_tags = ['PUNCT', 'DET', 'SPACE', 'ADV', 'AUX', 'PRON', 'ADP']
+
 stop_words = nlp.Defaults.stop_words
+# q_words = ['who', 'what', 'when']
 q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
+
 ####################################
 
 
@@ -408,19 +418,19 @@ fn.close()
 
 outputs=[]
 loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
-
+# print(loaded_weights, file=sys.stderr)
 ######run#######
 
 for story_id in ordered_ids:
     story_qa = test_questions[story_id]
     story = test_stories[story_id]['TEXT']
 
+    # print(story_id,file=sys.stderr)
     for question_id in ordered_qs[story_id]:
         # print("storyid"+story_id)
         question = story_qa[question_id]['Question']
         answer = story_qa[question_id]['Answer']  # this is a list
         # q_type = id_to_type[question_id]  # TO DO: This takes information from a pre-processing step, thus should be removed
-
         q_type, bump_word = get_q_type(nlp(question), q_words)
 
         filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
@@ -437,13 +447,13 @@ for story_id in ordered_ids:
         if q_type in loaded_weights:
             if loaded_weights[q_type]["TEXT"]>0:
                 used_weights=loaded_weights[q_type]
-                print('using tunedweigt', file=sys.stderr)
+                # print('using tunedweigt', file=sys.stderr)
         best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, used_weights["K"], q_type, used_weights, bump_word)
         
-        print(question,file=sys.stderr)
-        print(story_qa[question_id]['Answer'],file=sys.stderr)
-        print(best_context,file=sys.stderr)
-        print('\n',file=sys.stderr)
+        # print(question,file=sys.stderr)
+        # print(story_qa[question_id]['Answer'],file=sys.stderr)
+        # print(best_context,file=sys.stderr)
+        # print('\n',file=sys.stderr)
         print('QuestionID: '+question_id)
         print('Answer: ' + best_context.text + "\n")
 #         outputs.append([question_id, best_context])
