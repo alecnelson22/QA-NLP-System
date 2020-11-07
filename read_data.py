@@ -7,6 +7,7 @@ import math
 
 import spacy
 import os
+import pickle
 
 
 # nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
@@ -310,6 +311,8 @@ def get_q_type(question, q_words):
 
 # ===========================
 # ===========================
+
+
 
 #######Load Data#######
 stories = {}

@@ -4,7 +4,7 @@ import math
 # from nltk.corpus import stopwords
 # from nltk.tokenize import word_tokenize
 # from nltk.corpus import wordnet
-
+import pickle
 import spacy
 import os
 import sys
@@ -344,7 +344,7 @@ for fname in os.listdir(os.getcwd() + '/extra-data'):
 
 #######yper parameters#######
 # k = 5
-default_weights = {"TEXT": 2, "POS": 1, "ENT": 2,"BUMP":3, 'K':2}
+default_weights = {"TEXT": 2.2, "POS": 1.06, "ENT": 4.13,"BUMP":3.81, 'K':3}
 # default_k=4
 # bump_weight = 2  # == 1 does nothing, should be greater than 1
 # q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did', 'are']  # couple weird ones here
@@ -360,31 +360,33 @@ q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 
 
 #######Build Dictionary for Question Types#######
-q_2word_counts = {}  # attribute dictionary
-id_to_type = {}  # link q to type
-for story_id in list(questions.keys()):
-    story_qa = questions[story_id]
-    for question_id in list(story_qa.keys()):
-        question = story_qa[question_id]['Question']
-        answers = story_qa[question_id]['Answer']
-        tokenized_q = [token.text for token in nlp(question)]
-        nlp_a = [nlp(a) for a in answers]
-        q_type = get_q_words_count(nlp(question), nlp_a)
-        id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
-# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
-get_avg_ans_len()
+# q_2word_counts = {}  # attribute dictionary
+# id_to_type = {}  # link q to type
+# for story_id in list(questions.keys()):
+#     story_qa = questions[story_id]
+#     for question_id in list(story_qa.keys()):
+#         question = story_qa[question_id]['Question']
+#         answers = story_qa[question_id]['Answer']
+#         tokenized_q = [token.text for token in nlp(question)]
+#         nlp_a = [nlp(a) for a in answers]
+#         q_type = get_q_words_count(nlp(question), nlp_a)
+#         id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
+# # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+# get_avg_ans_len()
 
-# Normalize q_2word_counts values
-norm_keys = ['ENT', 'POS']  # values to normalize
-for q2 in q_2word_counts.keys():
-    for k in norm_keys:
-        count = 0
-        for item in q_2word_counts[q2][k].keys():
-            count += q_2word_counts[q2][k][item]
-        for item in q_2word_counts[q2][k].keys():
-            q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
+# # Normalize q_2word_counts values
+# norm_keys = ['ENT', 'POS']  # values to normalize
+# for q2 in q_2word_counts.keys():
+#     for k in norm_keys:
+#         count = 0
+#         for item in q_2word_counts[q2][k].keys():
+#             count += q_2word_counts[q2][k][item]
+#         for item in q_2word_counts[q2][k].keys():
+#             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
 
 #######LOAD INPUT FOR TESTING #################
+q_2word_counts=np.load('./attribute_dictionary', allow_pickle=True)
+loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
 
 test_stories={}
 test_questions={}
@@ -417,7 +419,12 @@ fn.close()
 
 
 outputs=[]
-loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
+
+
+
+# q_2word_counts
+
+
 # print(loaded_weights, file=sys.stderr)
 ######run#######
 
