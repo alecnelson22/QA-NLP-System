@@ -159,6 +159,8 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
                     elif(w_type == 'POS'):
                         if (q_type in attribute_dict):
                             curr_attr = attribute_dict[q_type][w_type]
+                        else:
+                            curr_attr = attribute_dict["Generic"][w_type]    
                             if(s_word.pos_ in curr_attr):
                                 curr_context_weight += curr_attr[s_word.pos_] * weight_dict[w_type]
                     elif(w_type =='ENT'):
@@ -173,7 +175,7 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
                 curr_attr = attribute_dict[q_type]["ENT"]
                 # print(curr_attr, file=sys.stderr)
             else:
-                curr_attr = attribute_dict[q_type]["Generic"]
+                curr_attr = attribute_dict["Generic"]["ENT"]
             for ent in entities:
                 if ent in curr_attr:
                     # print(ent, file=sys.stderr)
@@ -310,15 +312,14 @@ def get_avg_ans_len():
 
 def get_q_type(question, q_words):
     tokenized_q = [token.text for token in question]
-    bump_word = None
+    bump_word = ""
     for i, token in enumerate(tokenized_q):
         if token.lower() in q_words:
             q_type = token.lower() + ' ' + question[i + 1].pos_
             if q_2word_counts[q_type]['Inc Sim Weight']:
                 bump_word = question[i + 1].text
             return q_type, bump_word
-        else:
-            return "",""
+        
 
 # ===========================
 # ===========================
