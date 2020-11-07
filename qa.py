@@ -172,10 +172,12 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
             if q_type in attribute_dict:
                 curr_attr = attribute_dict[q_type]["ENT"]
                 # print(curr_attr, file=sys.stderr)
-                for ent in entities:
-                    if ent in curr_attr:
-                        # print(ent, file=sys.stderr)
-                        curr_context_weight += curr_attr[ent] * weight_dict[w_type]
+            else:
+                curr_attr = attribute_dict[q_type]["Generic"]
+            for ent in entities:
+                if ent in curr_attr:
+                    # print(ent, file=sys.stderr)
+                    curr_context_weight += curr_attr[ent] * weight_dict[w_type]
 
         # print(curr_context_weight)
         if curr_context_weight > best_context_weight:
@@ -387,6 +389,26 @@ q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 #######LOAD INPUT FOR TESTING #################
 q_2word_counts=np.load('./attribute_dictionary', allow_pickle=True)
 loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
+count = 0
+
+# Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
+# This is in case we come across a question we've never seen
+for k in q_2word_counts.keys():
+    count += q_2word_counts[k]['Count']
+nkeys = len(list(q_2word_counts.keys()))
+gen_keys = ['ENT', 'POS']
+generic_count = {'ENT': {}, 'POS': {}, 'Avg Ans Len': 5, 'Inc Sim Weight': False}
+for k1 in q_2word_counts.keys():
+    cw = q_2word_counts[k1]['Count'] / count
+    for k2 in gen_keys:
+        for k3 in q_2word_counts[k1][k2].keys():
+            if k3 not in generic_count[k2]:
+                generic_count[k2][k3] = q_2word_counts[k1][k2][k3] * cw
+            else:
+                generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
+q_2word_counts['Generic'] = generic_count
+
+
 
 test_stories={}
 test_questions={}

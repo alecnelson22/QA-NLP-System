@@ -7,7 +7,6 @@ import math
 
 import spacy
 import os
-import pickle
 
 
 # nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
@@ -142,7 +141,7 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
         #word level comparisons
         for q_word in question:
             for s_word in context_words:
-                for w_type in weight_dict: 
+                for w_type in weight_dict:
                     if(w_type == 'TEXT'):
 
                         if q_word.text == bump_word and q_word.similarity(s_word) > .75:
@@ -174,7 +173,7 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
         if curr_context_weight > best_context_weight:
             best_context_weight = curr_context_weight
             best_context = context_words
-    # print(best_context_weight) 
+    # print(best_context_weight)
     return best_context
 
 
@@ -197,7 +196,7 @@ def filter_by_stopwords(text, stopwords):
 
 def vectorize_list(text):
     str1 = ""
-    for ele in text:  
+    for ele in text:
         str1 += ele+" "
     vectorized = nlp(str1)
     return vectorized
@@ -312,8 +311,6 @@ def get_q_type(question, q_words):
 # ===========================
 # ===========================
 
-
-
 #######Load Data#######
 stories = {}
 questions = {}
@@ -323,15 +320,15 @@ for fname in os.listdir(os.getcwd() + '/data'):
     question_data = load_QA('data/' + id + '.answers')
     stories[id] = story_data
     questions[id] = question_data
-# for fname in os.listdir(os.getcwd() + '/extra-data'):
-#     if '.answers' in fname:
-#         id = fname.split('.answers')[0]
-#         question_data = load_QA('extra-data/' + id + '.answers')
-#         questions[id] = question_data
-#     else:
-#         id = fname.split('.story')[0]
-#         story_data = load_story('extra-data/' + id + '.story')
-#         stories[id] = story_data
+for fname in os.listdir(os.getcwd() + '/extra-data'):
+    if '.answers' in fname:
+        id = fname.split('.answers')[0]
+        question_data = load_QA('extra-data/' + id + '.answers')
+        questions[id] = question_data
+    else:
+        id = fname.split('.story')[0]
+        story_data = load_story('extra-data/' + id + '.story')
+        stories[id] = story_data
 
 
 #######yper parameters#######
@@ -370,6 +367,25 @@ for q2 in q_2word_counts.keys():
             count += q_2word_counts[q2][k][item]
         for item in q_2word_counts[q2][k].keys():
             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
+
+
+
+count = 0
+for k in q_2word_counts.keys():
+    count += q_2word_counts[k]['Count']
+nkeys = len(list(q_2word_counts.keys()))
+gen_keys = ['ENT', 'POS']
+generic_count = {'ENT': {}, 'POS': {}, 'Avg Ans Len': 5, 'Inc Sim Weight': False}
+for k1 in q_2word_counts.keys():
+    cw = q_2word_counts[k1]['Count'] / count
+    for k2 in gen_keys:
+        for k3 in q_2word_counts[k1][k2].keys():
+            if k3 not in generic_count[k2]:
+                generic_count[k2][k3] = q_2word_counts[k1][k2][k3] * cw
+            else:
+                generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
+q_2word_counts['Generic'] = generic_count
+print('here')
 
 
 ######run#######
