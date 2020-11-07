@@ -14,7 +14,8 @@ python3 qy.py input.txt > output.txt
 
 
 Time: Our preprocessing step takes around a minute. Each document in an input file should be processed in around 15s at the longest, depending on the 
-number of questions
+number of questions.  To speed this process up, we have computed our preprocessing results beforehand and saved themto a file and load them at runtime, rather than compute them.
+We left the preprocessing computation commented out in case the reviewer would like to see it.  
 
 
 Both team members worked in close collaboration throught the process. Some specific tasks that can be attributed to an individual are:
