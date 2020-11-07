@@ -277,7 +277,7 @@ def get_q_words_count(nlp_q, nlp_a):
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
 
             if q2 not in list(q_2word_counts.keys()):
-                #q_2word_counts[q2] = 1
+                # q_2word_counts[q2] = 1
                 q_2word_counts[q2] = {}
                 q_2word_counts[q2]['Count'] = 1
                 q_2word_counts[q2]['ENT'] = {}
@@ -327,7 +327,8 @@ def get_q_type(question, q_words):
             if q_2word_counts[q_type]['Inc Sim Weight']:
                 bump_word = question[i + 1].text
             return q_type, bump_word
-        
+    # print('stop')
+    return "Generic", bump_word
 
 # ===========================
 # ===========================
@@ -387,10 +388,18 @@ for story_id in list(questions.keys()):
 
 new_q2 = {}
 for k1 in q_2word_counts.keys():
+    # if q_2word_counts[k1] < 10:
+    #     new_key = [token for token in nlp(k1)]
+    #     new_key = new_key[0].text + ' ' + new_key[1].pos_
+    #     if new_key not in new_q2:
+    #         new_q2[new_key] = q_2word_counts[k1]
+    #     else:
+    #         new_q2[new_key] += q_2word_counts[k1]
+    # else:
+    #     new_q2[k1] = q_2word_counts[k1]
     if q_2word_counts[k1]['Count'] < 10:
         new_key = [token for token in nlp(k1)]
         new_key = new_key[0].text + ' ' + new_key[1].pos_
-
         if new_key not in new_q2:
             new_q2[new_key] = q_2word_counts[k1]
         else:
@@ -406,6 +415,8 @@ for k1 in q_2word_counts.keys():
     else:
         new_q2[k1] = q_2word_counts[k1]
 q_2word_counts = new_q2
+# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+# np.save('sorted_qtypes', q_2word_counts)
 get_avg_ans_len()
 
 # Normalize q_2word_counts values
@@ -417,6 +428,10 @@ for q2 in q_2word_counts.keys():
             count += q_2word_counts[q2][k][item]
         for item in q_2word_counts[q2][k].keys():
             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
+
+f = open('attribute_dictionary', 'wb')
+pickle.dump(q_2word_counts, f)
+f.close()
 
 # #######LOAD INPUT FOR TESTING #################
 # q_2word_counts=np.load('./attribute_dictionary', allow_pickle=True)
