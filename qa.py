@@ -143,14 +143,21 @@ def get_best_context_w_pos(story, story_pos, question, question_pos,k):
 
 #input: story & q are spacy objs. q_type is the question type, weight dict defines how to distubute weights among attributes
 def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight_dict, bump_word):
+    filter_pos_tags = ['PUNCT', 'DET', 'SPACE']
+    stop_words = nlp.Defaults.stop_words
+
+    best_context = get_context_words_span(story, k, 0)
     best_context_weight = 0
-    best_context=get_context_words_span(story, k, 0)
     for t_idx in range(len(story)):
         context_words = get_context_words_span(story, k, t_idx)  # context_words is a spacy doc
         curr_context_weight = 0
         #word level comparisons
         for q_word in question:
             for s_word in context_words:
+                if s_word.text in stop_words:
+                    continue
+                if s_word.pos_ in filter_pos_tags:
+                    continue
                 for w_type in weight_dict: 
                     if(w_type == 'TEXT'):
 
@@ -199,19 +206,19 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
 
 
 # Removes any words with POS in filter tags from text, returns filtered text
-def filter_by_POS(text, filter_tags):
+def filter_by_POS(tagged_text, filter_tags):
     # tagged_text = get_POS_tags(text)
-    tagged_text = [[token.text, token.pos_] for token in text]
+    # tagged_text = [[token.text, token.pos_] for token in text]
     pos_text = [tagged[1] for tagged in tagged_text]
-    word_text = [tagged[0] for tagged in tagged_text]
+    # word_text = [tagged[0] for tagged in tagged_text]
     filter_idxs = [idx for idx in range(len(pos_text)) if pos_text[idx] in filter_tags]
-    filtered_text = [w for i, w in enumerate(word_text) if i not in filter_idxs]
-    filtered_pos=[w for i, w in enumerate(pos_text) if i not in filter_idxs]
+    filtered_text = [[w[0],w[2]] for i, w in enumerate(tagged_text) if i not in filter_idxs]
+    filtered_pos = [w for i, w in enumerate(pos_text) if i not in filter_idxs]
     return filtered_text, filtered_pos
 
 
 def filter_by_stopwords(text, stopwords):
-    filtered_text = [w for w in text if w not in stopwords]
+    filtered_text = [[w[0], w[1]] for w in text if w[0] not in stopwords]
     return filtered_text
 
 
@@ -348,7 +355,6 @@ for fname in os.listdir(os.getcwd() + '/data'):
     question_data, _ = load_QA('data/' + id + '.answers')
     stories[id] = story_data
     questions[id] = question_data
-    # print(id)
 
 # Test set 1
 for fname in os.listdir(os.getcwd() + '/testset1'):
@@ -358,15 +364,15 @@ for fname in os.listdir(os.getcwd() + '/testset1'):
     stories[id] = story_data
     questions[id] = question_data
 
-# for fname in os.listdir(os.getcwd() + '/extra-data'):
-#     if '.answers' in fname:
-#         id = fname.split('.answers')[0]
-#         question_data, _ = load_QA('extra-data/' + id + '.answers')
-#         questions[id] = question_data
-#     else:
-#         id = fname.split('.story')[0]
-#         story_data = load_story('extra-data/' + id + '.story')
-#         stories[id] = story_data
+for fname in os.listdir(os.getcwd() + '/extra-data'):
+    if '.answers' in fname:
+        id = fname.split('.answers')[0]
+        question_data, _ = load_QA('extra-data/' + id + '.answers')
+        questions[id] = question_data
+    else:
+        id = fname.split('.story')[0]
+        story_data = load_story('extra-data/' + id + '.story')
+        stories[id] = story_data
 
 
 #######yper parameters#######
@@ -503,34 +509,36 @@ for l in fn:
 fn.close()
 outputs=[]
 
-# print(loaded_weights, file=sys.stderr)
 ######run#######
-
 for story_id in ordered_ids:
     story_qa = test_questions[story_id]
     story = test_stories[story_id]['TEXT']
 
+    ####NEW####
+    story = nlp(story)
     # story_sents = list(nlp2(story).sents)
-    # print('here')
+    # test1 = [token for token in nlp(story_sents[0].text)]
+    # test2 = [token for token in nlp(story)]
+    tagged_text = [[token.text, token.pos_, i] for i, token in enumerate(story)]
+    filtered_s, filtered_s_pos = filter_by_POS(tagged_text, filter_pos_tags)
+    filtered_s = filter_by_stopwords(filtered_s, stop_words)
+    filtered_s_text = [w[0] for w in filtered_s]
+    ###########
+    vectorized_s = vectorize_list(filtered_s_text)
 
-    # print(story_id,file=sys.stderr)
     for question_id in ordered_qs[story_id]:
-        # print("storyid"+story_id)
         question = story_qa[question_id]['Question']
         answer = story_qa[question_id]['Answer']  # this is a list
         # q_type = id_to_type[question_id]  # TO DO: This takes information from a pre-processing step, thus should be removed
         q_type, bump_word = get_q_type(nlp(question), q_words)
-
-        filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
-        filtered_s_text, filtered_s_pos = filter_by_POS(nlp(story), filter_pos_tags)
-
+        tagged_q = [[token.text, token.pos_, i] for i, token in enumerate(nlp(question))]
+        filtered_q, filtered_q_pos = filter_by_POS(tagged_q, filter_pos_tags)
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
-        filtered_s = filter_by_stopwords(filtered_s_text, stop_words)
+        filtered_q_text = [w[0] for w in filtered_q]
+        vectorized_q = vectorize_list(filtered_q_text)
 
-        vectorized_q = vectorize_list(filtered_q)
-        vectorized_s = vectorize_list(filtered_s)
-
-        k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
+        # k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
+        k = 6
 
         q_type2 = q_type.split()
         if q_type2[1].islower():
@@ -552,7 +560,8 @@ for story_id in ordered_ids:
         # print(story_qa[question_id]['Answer'],file=sys.stderr)
         # print(best_context,file=sys.stderr)
         # print('\n',file=sys.stderr)
-        print('QuestionID: '+question_id)
+        print('QuestionID: ', question)
+        print('Answer: ', answer)
         print('Answer: ' + best_context.text + "\n")
 #         outputs.append([question_id, best_context])
 
