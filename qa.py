@@ -376,7 +376,7 @@ for fname in os.listdir(os.getcwd() + '/extra-data'):
 
 #######yper parameters#######
 # k = 5
-default_weights = {"TEXT": 2.2, "POS": 1.06, "ENT": 4.13,"BUMP":3.81, 'K':3}
+default_weights = {"TEXT": 2.2, "POS": 1.06, "ENT": 4.13, "BUMP": 3.81, 'K': 3}
 # default_k=4
 # bump_weight = 2  # == 1 does nothing, should be greater than 1
 # q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did', 'are']  # couple weird ones here
