@@ -8,8 +8,13 @@ import pickle
 import spacy
 import os
 import sys
+from pysbd.utils import PySBDFactory
 
 nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
+
+# nlp2 = spacy.load("en_core_web_lg")
+# nlp2.add_pipe(PySBDFactory(nlp2), before="parser")
+
 # nlp = spacy.load("en_core_web_md")  # make sure to use larger model!
 # nlp = spacy.load("en_core_web_sm")  # make sure to use larger model!
 
@@ -333,6 +338,7 @@ def get_q_type(question, q_words):
 # ===========================
 # ===========================
 
+
 #######Load Data####### these are test sets
 stories = {}
 questions = {}
@@ -343,15 +349,24 @@ for fname in os.listdir(os.getcwd() + '/data'):
     stories[id] = story_data
     questions[id] = question_data
     # print(id)
-for fname in os.listdir(os.getcwd() + '/extra-data'):
-    if '.answers' in fname:
-        id = fname.split('.answers')[0]
-        question_data, _ = load_QA('extra-data/' + id + '.answers')
-        questions[id] = question_data
-    else:
-        id = fname.split('.story')[0]
-        story_data = load_story('extra-data/' + id + '.story')
-        stories[id] = story_data
+
+# Test set 1
+for fname in os.listdir(os.getcwd() + '/testset1'):
+    id = fname.split('.')[0]
+    story_data = load_story('testset1/' + id + '.story')
+    question_data, _ = load_QA('testset1/' + id + '.answers')
+    stories[id] = story_data
+    questions[id] = question_data
+
+# for fname in os.listdir(os.getcwd() + '/extra-data'):
+#     if '.answers' in fname:
+#         id = fname.split('.answers')[0]
+#         question_data, _ = load_QA('extra-data/' + id + '.answers')
+#         questions[id] = question_data
+#     else:
+#         id = fname.split('.story')[0]
+#         story_data = load_story('extra-data/' + id + '.story')
+#         stories[id] = story_data
 
 
 #######yper parameters#######
@@ -410,6 +425,8 @@ for k1 in q_2word_counts.keys():
                             new_q2[new_key][k2][k3] = q_2word_counts[k1][k2][k3]
                         else:
                             new_q2[new_key][k2][k3] += q_2word_counts[k1][k2][k3]
+                elif k2 == "Inc Sim Weight":
+                    new_q2[new_key][k2] = q_2word_counts[k1][k2]
                 else:
                     new_q2[new_key][k2] += q_2word_counts[k1][k2]
     else:
@@ -492,6 +509,9 @@ outputs=[]
 for story_id in ordered_ids:
     story_qa = test_questions[story_id]
     story = test_stories[story_id]['TEXT']
+
+    # story_sents = list(nlp2(story).sents)
+    # print('here')
 
     # print(story_id,file=sys.stderr)
     for question_id in ordered_qs[story_id]:

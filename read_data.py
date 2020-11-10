@@ -222,7 +222,7 @@ def get_q_words_count(nlp_q, nlp_a):
                     # Extra weight/more emphasis should be placed on this VERB
                     # ex) what walks?  animals walk.
                     increase_sim_weight = True
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'who':
                 if nlp_q[i + 1].pos_ == 'VERB':
                     # Extra weight/more emphasis should be placed on this VERB
@@ -231,34 +231,34 @@ def get_q_words_count(nlp_q, nlp_a):
                 elif nlp_q[i + 1].text == 'is':
                     # Do something special here?
                     pass
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'which':
                 if nlp_q[i + 1].pos_ == 'NOUN':
                     # Extra weight/more emphasis should be placed on this NOUN
                     # ex) which day?  Monday.
                     increase_sim_weight = True
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'whose':
                 if nlp_q[i + 1].pos_ == 'NOUN':
                     # Extra weight/more emphasis should be placed on this NOUN
                     # ex) whose house?  John's house.
                     increase_sim_weight = True
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
             # I went through each of these, I don't think anything needs to be done
             # Keeping them like this for the time being in case we want to add any special rules
             elif w.lower() == 'how':
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'when':
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'where':
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'why':
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
                 # print(w.lower() + ' ' + nlp_q[i + 1].text + ' (' + nlp_q[i + 1].pos_ + ')')
 
             else:
                 # q2 = w.lower() + ' ' + tokenized_q[i + 1]
-                q2 = w.lower() + ' ' + nlp_q[i + 1].pos_
+                q2 = w.lower() + ' ' + nlp_q[i + 1].text
 
             if q2 not in list(q_2word_counts.keys()):
                 # q_2word_counts[q2] = 1
@@ -300,13 +300,19 @@ def get_avg_ans_len():
 
 def get_q_type(question, q_words):
     tokenized_q = [token.text for token in question]
-    bump_word = None
+    bump_word = ""
     for i, token in enumerate(tokenized_q):
         if token.lower() in q_words:
-            q_type = token.lower() + ' ' + question[i + 1].pos_
+            q_type = token.lower() + ' ' + question[i + 1].text
+            if q_type not in list(q_2word_counts.keys()):
+                q_type = token.lower() + ' ' + question[i + 1].pos_
+                if q_type not in list(q_2word_counts.keys()):
+                    q_type = 'Generic'
             if q_2word_counts[q_type]['Inc Sim Weight']:
                 bump_word = question[i + 1].text
             return q_type, bump_word
+    # print('stop')
+    return "Generic", bump_word
 
 # ===========================
 # ===========================
@@ -320,20 +326,29 @@ for fname in os.listdir(os.getcwd() + '/data'):
     question_data = load_QA('data/' + id + '.answers')
     stories[id] = story_data
     questions[id] = question_data
-for fname in os.listdir(os.getcwd() + '/extra-data'):
-    if '.answers' in fname:
-        id = fname.split('.answers')[0]
-        question_data = load_QA('extra-data/' + id + '.answers')
-        questions[id] = question_data
-    else:
-        id = fname.split('.story')[0]
-        story_data = load_story('extra-data/' + id + '.story')
-        stories[id] = story_data
+
+# Test set 1
+for fname in os.listdir(os.getcwd() + '/testset1'):
+    id = fname.split('.')[0]
+    story_data = load_story('testset1/' + id + '.story')
+    question_data = load_QA('testset1/' + id + '.answers')
+    stories[id] = story_data
+    questions[id] = question_data
+
+# for fname in os.listdir(os.getcwd() + '/extra-data'):
+#     if '.answers' in fname:
+#         id = fname.split('.answers')[0]
+#         question_data = load_QA('extra-data/' + id + '.answers')
+#         questions[id] = question_data
+#     else:
+#         id = fname.split('.story')[0]
+#         story_data = load_story('extra-data/' + id + '.story')
+#         stories[id] = story_data
 
 
 #######yper parameters#######
 # k = 5
-weights = {"TEXT": .1, "POS": .5, "ENT": 1}
+weights = {"TEXT": .25, "POS": .25, "ENT": 1}
 bump_weight = 2  # == 1 does nothing, should be greater than 1
 # q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did', 'are']  # couple weird ones here
 ####################################
@@ -356,6 +371,40 @@ for story_id in list(questions.keys()):
         q_type = get_q_words_count(nlp(question), nlp_a)
         id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
 # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+
+new_q2 = {}
+for k1 in q_2word_counts.keys():
+    # if q_2word_counts[k1] < 10:
+    #     new_key = [token for token in nlp(k1)]
+    #     new_key = new_key[0].text + ' ' + new_key[1].pos_
+    #     if new_key not in new_q2:
+    #         new_q2[new_key] = q_2word_counts[k1]
+    #     else:
+    #         new_q2[new_key] += q_2word_counts[k1]
+    # else:
+    #     new_q2[k1] = q_2word_counts[k1]
+    if q_2word_counts[k1]['Count'] < 10:
+        new_key = [token for token in nlp(k1)]
+        new_key = new_key[0].text + ' ' + new_key[1].pos_
+        if new_key not in new_q2:
+            new_q2[new_key] = q_2word_counts[k1]
+        else:
+            for k2 in q_2word_counts[k1].keys():
+                if k2 == 'POS' or k2 == 'ENT':
+                    for k3 in q_2word_counts[k1][k2].keys():
+                        if k3 not in new_q2[new_key][k2].keys():
+                            new_q2[new_key][k2][k3] = q_2word_counts[k1][k2][k3]
+                        else:
+                            new_q2[new_key][k2][k3] += q_2word_counts[k1][k2][k3]
+                elif k2 == "Inc Sim Weight":
+                    new_q2[new_key][k2] = q_2word_counts[k1][k2]
+                else:
+                    new_q2[new_key][k2] += q_2word_counts[k1][k2]
+    else:
+        new_q2[k1] = q_2word_counts[k1]
+q_2word_counts = new_q2
+# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+# np.save('sorted_qtypes', q_2word_counts)
 get_avg_ans_len()
 
 # Normalize q_2word_counts values
@@ -367,8 +416,6 @@ for q2 in q_2word_counts.keys():
             count += q_2word_counts[q2][k][item]
         for item in q_2word_counts[q2][k].keys():
             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
-
-
 
 count = 0
 for k in q_2word_counts.keys():
@@ -385,8 +432,6 @@ for k1 in q_2word_counts.keys():
             else:
                 generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
 q_2word_counts['Generic'] = generic_count
-print('here')
-
 
 ######run#######
 for story_id in list(questions.keys()):
@@ -400,6 +445,7 @@ for story_id in list(questions.keys()):
 
         q_type, bump_word = get_q_type(nlp(question), q_words)
 
+
         filtered_q, filtered_q_pos = filter_by_POS(nlp(question), filter_pos_tags)
         filtered_s_text, filtered_s_pos = filter_by_POS(nlp(story), filter_pos_tags)
 
@@ -410,13 +456,15 @@ for story_id in list(questions.keys()):
         vectorized_s = vectorize_list(filtered_s)
 
         k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
+        if k > 6:
+            k = 6
 
         best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, k, q_type, weights, bump_word)
         
-        # print(question)
-        # print(story_qa[question_id]['Answer'])
-        # print(best_context)
-        # print('\n')
+        print(question)
+        print(story_qa[question_id]['Answer'])
+        print(best_context)
+        print('\n')
 
 
 
