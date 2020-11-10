@@ -316,9 +316,11 @@ def get_q_type(question, q_words):
     for i, token in enumerate(tokenized_q):
         if token.lower() in q_words:
             q_type = token.lower() + ' ' + question[i + 1].pos_
-            if q_2word_counts[q_type]['Inc Sim Weight']:
-                bump_word = question[i + 1].text
-            return q_type, bump_word
+            if q_type in q_2word_counts:
+                if q_2word_counts[q_type]['Inc Sim Weight']:
+                    bump_word = question[i + 1].text
+                return q_type, bump_word
+    return "Generic",bump_word
         
 
 # ===========================
@@ -327,24 +329,28 @@ def get_q_type(question, q_words):
 #######Load Data####### these are test sets
 stories = {}
 questions = {}
-for fname in os.listdir(os.getcwd() + '/data'):
-    id = fname.split('.')[0]
-    story_data = load_story('data/' + id + '.story')
-    question_data, _ = load_QA('data/' + id + '.answers')
-    stories[id] = story_data
-    questions[id] = question_data
-    # print(id)
-for fname in os.listdir(os.getcwd() + '/extra-data'):
-    if '.answers' in fname:
-        id = fname.split('.answers')[0]
-        question_data, _ = load_QA('extra-data/' + id + '.answers')
-        questions[id] = question_data
-    else:
-        id = fname.split('.story')[0]
-        story_data = load_story('extra-data/' + id + '.story')
-        stories[id] = story_data
+# id_list=[]
+# for fname in os.listdir(os.getcwd() + '/data'):
+#     id = fname.split('.')[0]
+#     story_data = load_story('data/' + id + '.story')
+#     question_data, _ = load_QA('data/' + id + '.answers')
+#     stories[id] = story_data
+#     questions[id] = question_data
+#     # print(id)
+# for fname in os.listdir(os.getcwd() + '/testset1'):
+#     if '.answers' in fname:
+#         id = fname.split('.answers')[0]
+#         question_data, _ = load_QA('extra-data/' + id + '.answers')
+#         questions[id] = question_data
+#         id_list.append(id)
+#     else:
+#         id = fname.split('.story')[0]
+#         story_data = load_story('extra-data/' + id + '.story')
+#         stories[id] = story_data
 
-
+# for id in id_list:
+#     print(id)
+# asdf
 #######yper parameters#######
 # k = 5
 default_weights = {"TEXT": 2.2, "POS": 1.06, "ENT": 4.13,"BUMP":3.81, 'K':3}

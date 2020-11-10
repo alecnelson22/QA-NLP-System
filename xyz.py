@@ -9,16 +9,34 @@ my_dictc=np.load('./tuned_weights_shortf_remaining', allow_pickle=True)
 my_dictwa=np.load('./tuned_weights_shortf_whenaux', allow_pickle=True)
 my_dictr2=np.load('./tuned_weights_shortf_whenaux', allow_pickle=True)
 my_dictd=np.load('./tuned_weights_shortd', allow_pickle=True)
+my_dictheyyy=np.load('./tuned_weights_how_ADJ', allow_pickle=True)
 
 
 
+
+added=[]
 
 my_final_dict={}
+for typ in my_dictheyyy:
+    if my_dictheyyy[typ]["text_weight"]!=0:
+        if typ not in added:
+            my_final_dict[typ]={}
 
+            print('for type ', typ)
+            print('text_weight', my_dictheyyy[typ]["text_weight"])
+            print('pos_weight', my_dictheyyy[typ]["pos_weight"])
+            print('ent_weight', my_dictheyyy[typ]["ent_weight"])
+            print('k', my_dictheyyy[typ]["k"])
+            print('bump_weight', my_dictheyyy[typ]["bump_weight"])
+            added.append(typ)
+            my_final_dict[typ]['POS']=my_dictheyyy[typ]["pos_weight"]
+            my_final_dict[typ]['ENT']=my_dictheyyy[typ]["ent_weight"]
+            my_final_dict[typ]['BUMP']=my_dictheyyy[typ]["bump_weight"]
+            my_final_dict[typ]['K']=my_dictheyyy[typ]["k"]
+            my_final_dict[typ]['TEXT']=my_dictheyyy[typ]["text_weight"]
 
 print(my_dict)
 # to_add=[]
-added=[]
 print("l")
 for typ in my_dictl:
     if my_dictl[typ]["text_weight"]!=0:
@@ -183,3 +201,6 @@ try:
     f.close()
 except: 
     print("Something went wrong")
+
+
+print(my_final_dict)
