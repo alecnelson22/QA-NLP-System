@@ -374,7 +374,6 @@ for fname in os.listdir(os.getcwd() + '/extra-data'):
         story_data = load_story('extra-data/' + id + '.story')
         stories[id] = story_data
 
-
 #######yper parameters#######
 # k = 5
 default_weights = {"TEXT": 2.2, "POS": 1.06, "ENT": 4.13,"BUMP":3.81, 'K':3}
