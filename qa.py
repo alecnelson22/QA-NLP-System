@@ -199,7 +199,11 @@ def get_best_context_w_weight(story_data, question_data, orig_story, attribute_d
             best_context_weight = curr_context_weight
             best_context = context_words
             best_ents = entities
-    return best_context, best_ents
+    # Fetch unfiltered best context
+    start_idx = best_context[0][1]
+    end_idx = best_context[-1][1]
+    unfiltered = orig_story[start_idx:end_idx+1]
+    return unfiltered, best_ents
 
 
 # Removes any words with POS in filter tags from text, returns filtered text
@@ -548,10 +552,10 @@ for story_id in ordered_ids:
         # print('\n',file=sys.stderr)
         print('QuestionID: ', question)
         print('Answer: ', answer)
-        ans = ''
-        for w in best_context:
-            ans += w[0].text + ' '
-        print('Answer: ' + ans)
+        # ans = ''
+        # for w in best_context:
+        #     ans += w[0].text + ' '
+        print('Answer: ' + best_context.text)
         print('Entities in answer: ', [e.label_ for e in ents], '\n')
 #         outputs.append([question_id, best_context])
 
