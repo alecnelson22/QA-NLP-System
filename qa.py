@@ -9,7 +9,7 @@ import spacy
 import os
 import sys
 from pysbd.utils import PySBDFactory
-
+import statistics
 nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
 
 # nlp2 = spacy.load("en_core_web_lg")
@@ -339,6 +339,46 @@ def get_q_type(question, q_words):
     # print('stop')
     return "Generic", bump_word
 
+leading_punct=',:;.!?\'\"({)}'
+trailing_punct=',:;.!?\'\"({)}$'
+def get_fscore(response, key):
+    r=response.split()
+    response=[]
+    for y in r:
+        adj=y.lower().lstrip(leading_punct).rstrip(trailing_punct)
+        if adj != '':
+            response.append(adj)
+    best_fm=0
+    b_recall=0
+    b_prec=0
+    for i,a in enumerate(key):
+        asdf=a.split()
+        ans=[]
+        for x in asdf:
+            adjx=x.lower().lstrip(leading_punct).rstrip(trailing_punct)
+            if adjx != '':
+                ans.append(adjx)
+        correct = 0
+        cwords = set()
+        for wrd in response:
+            w = wrd.lower().strip()
+            if w in ans:
+                if w not in cwords:
+                    correct += 1
+                    cwords.add(w)
+        recall = correct/len(ans)
+        prec = correct/len(response)
+        fm = 0
+        if recall+prec == 0:
+            fm = 0
+        else:
+            fm =(2*recall*prec)/(recall+prec)
+        if(fm > best_fm):
+            best_fm = fm
+            best_fm_ind = i
+            b_recall = recall
+            b_prec = prec
+    return best_fm,b_prec, b_recall
 # ===========================
 # ===========================
 
@@ -346,30 +386,31 @@ def get_q_type(question, q_words):
 #######Load Data####### these are test sets
 stories = {}
 questions = {}
-for fname in os.listdir(os.getcwd() + '/data'):
-    id = fname.split('.')[0]
-    story_data = load_story('data/' + id + '.story')
-    question_data, _ = load_QA('data/' + id + '.answers')
-    stories[id] = story_data
-    questions[id] = question_data
-
-# Test set 1
-# for fname in os.listdir(os.getcwd() + '/testset1'):
+test_answer_key={}
+# for fname in os.listdir(os.getcwd() + '/data'):
 #     id = fname.split('.')[0]
-#     story_data = load_story('testset1/' + id + '.story')
-#     question_data, _ = load_QA('testset1/' + id + '.answers')
+#     story_data = load_story('data/' + id + '.story')
+#     question_data, _ = load_QA('data/' + id + '.answers')
 #     stories[id] = story_data
 #     questions[id] = question_data
 
-for fname in os.listdir(os.getcwd() + '/extra-data'):
-    if '.answers' in fname:
-        id = fname.split('.answers')[0]
-        question_data, _ = load_QA('extra-data/' + id + '.answers')
-        questions[id] = question_data
-    else:
-        id = fname.split('.story')[0]
-        story_data = load_story('extra-data/' + id + '.story')
-        stories[id] = story_data
+# Test set 1
+for fname in os.listdir(os.getcwd() + '/testset1'):
+    id = fname.split('.')[0]
+    story_data = load_story('testset1/' + id + '.story')
+    question_data, _ = load_QA('testset1/' + id + '.answers')
+    stories[id] = story_data
+    test_answer_key[id] = question_data
+
+# for fname in os.listdir(os.getcwd() + '/extra-data'):
+#     if '.answers' in fname:
+#         id = fname.split('.answers')[0]
+#         question_data, _ = load_QA('extra-data/' + id + '.answers')
+#         questions[id] = question_data
+#     else:
+#         id = fname.split('.story')[0]
+#         story_data = load_story('extra-data/' + id + '.story')
+#         stories[id] = story_data
 
 #######yper parameters#######
 # k = 5
@@ -503,7 +544,7 @@ for l in fn:
 
 fn.close()
 outputs=[]
-
+type_to_score={}
 ######run#######
 for story_id in ordered_ids:
     story_qa = test_questions[story_id]
@@ -520,7 +561,7 @@ for story_id in ordered_ids:
 
     for question_id in ordered_qs[story_id]:
         question = story_qa[question_id]['Question']
-        answer = story_qa[question_id]['Answer']
+        answer = test_answer_key[story_id][question_id]['Answer']
         # q_type = id_to_type[question_id]  # TO DO: This takes information from a pre-processing step, thus should be removed
         q_type, bump_word = get_q_type(nlp(question), q_words)
         tagged_q = [[token, i] for i, token in enumerate(nlp(question))]
@@ -532,11 +573,14 @@ for story_id in ordered_ids:
         k = 5
 
         q_type2 = q_type.split()
-        if q_type2[1].islower():
-            tmp = [token for token in nlp(q_type)]
-            q_type2 = tmp[0].text + ' ' + tmp[1].pos_
+        if len(q_type2)>1:
+            if q_type2[1].islower():
+                tmp = [token for token in nlp(q_type)]
+                q_type2 = tmp[0].text + ' ' + tmp[1].pos_
+            else:
+                q_type2 = q_type2[0] + ' ' + q_type2[1]
         else:
-            q_type2 = q_type2[0] + ' ' + q_type2[1]
+            q_type2=q_type2[0]
 
         used_weights = default_weights
         if q_type2 in loaded_weights.keys():
@@ -550,16 +594,30 @@ for story_id in ordered_ids:
         # print(story_qa[question_id]['Answer'],file=sys.stderr)
         # print(best_context,file=sys.stderr)
         # print('\n',file=sys.stderr)
-        print('QuestionID: ', question)
-        print('Answer: ', answer)
+        print('QuestionID: '+question_id)
+        print('Answer: ' + best_context.text + "\n")
+        print('QuestionID: ' ,question, file=sys.stderr)
+        print('Answer: ', answer, file=sys.stderr)
+        fscore, prec, recall= get_fscore(best_context.text,answer )
+        print('fscore: ', fscore, file=sys.stderr)
+        print('prec/recal: ', prec,recall, file=sys.stderr)
+        if(q_type2 not in type_to_score):
+            type_to_score[q_type2]=[]
+        type_to_score[q_type2].append(recall)
         # ans = ''
         # for w in best_context:
         #     ans += w[0].text + ' '
-        print('Answer: ' + best_context.text)
-        print('Entities in answer: ', [e.label_ for e in ents], '\n')
+        print('Answer: ' + best_context.text, file=sys.stderr)
+        print('Entities in answer: ', [e.label_ for e in ents], '\n', file=sys.stderr)
 #         outputs.append([question_id, best_context])
+type_to_score_ave={}
+for typ in type_to_score:
+    mean=statistics.mean(type_to_score[typ])
+    print('for qtype', typ, "ave score is ",mean, file=sys.stderr)
+    type_to_score_ave[typ]=mean
 
-
+ordered={k: v for k, v in sorted(type_to_score_ave.items(), key=lambda item: item[1])}
+print(orderedfile=sys.stderr)
 # for output in outputs:
 #     print('QuestionID: '+output[0])
 #     print('Answer: ' + output[1] + "\n")
