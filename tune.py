@@ -502,18 +502,57 @@ for story_id in list(questions.keys()):
         qid_to_sid[question_id] = filtered_s
         qid_to_vecq[question_id] = filtered_q
         correct_ans = story_qa[question_id]['Answer']
-        correct_filt = []
-        for resp in correct_ans:
-            f_response = [token.text for token in nlp(resp) if token.pos_ != 'PUNCT' and token.pos_ != 'SPACE']
-            correct_filt.append(f_response)
-            # correct_filt.append(filter_by_POS(nlp(resp), ['PUNCT', 'SPACE'])[0])
-        to_check = []
-        for i,resp in enumerate(correct_filt):
-            to_check.append([])
-            for w in (resp):
-                to_check[i].append(w.lower().strip())
-        qid_to_answ[question_id] = to_check
-
+        # correct_filt = []
+        # for resp in correct_ans:
+        #     f_response = [token.text for token in nlp(resp) if token.pos_ != 'PUNCT' and token.pos_ != 'SPACE']
+        #     correct_filt.append(f_response)
+        #     # correct_filt.append(filter_by_POS(nlp(resp), ['PUNCT', 'SPACE'])[0])
+        # to_check = []
+        # for i,resp in enumerate(correct_filt):
+        #     to_check.append([])
+        #     for w in (resp):
+        #         to_check[i].append(w.lower().strip())
+        qid_to_answ[question_id] = correct_ans
+leading_punct=',:;.!?\'\"({)}'
+trailing_punct=',:;.!?\'\"({)}$'
+def get_fscore(response, key):
+    r=response.split()
+    response=[]
+    for y in r:
+        adj=y.lower().lstrip(leading_punct).rstrip(trailing_punct)
+        if adj != '':
+            response.append(adj)
+    best_fm=0
+    b_recall=0
+    b_prec=0
+    for i,a in enumerate(key):
+        asdf=a.split()
+        ans=[]
+        for x in asdf:
+            adjx=x.lower().lstrip(leading_punct).rstrip(trailing_punct)
+            if adjx != '':
+                ans.append(adjx)
+        correct = 0
+        cwords = set()
+        for wrd in response:
+            w = wrd.lower().strip()
+            if w in ans:
+                if w not in cwords:
+                    correct += 1
+                    cwords.add(w)
+        recall = correct/len(ans)
+        prec = correct/len(response)
+        fm = 0
+        if recall+prec == 0:
+            fm = 0
+        else:
+            fm =(2*recall*prec)/(recall+prec)
+        if(fm > best_fm):
+            best_fm = fm
+            best_fm_ind = i
+            b_recall = recall
+            b_prec = prec
+    return best_fm,b_prec, b_recall
 
 
 ######tune#######
@@ -533,8 +572,8 @@ for typ in q_type_set:
 best_params_per_story={}
 
 #######Load Data####### these are test sets
-stories = {}
-questions = {}
+# stories = {}
+# questions = {}
 # for fname in os.listdir(os.getcwd() + '/data'):
 #     id = fname.split('.')[0]
 #     story_data = load_story('data/' + id + '.story')
@@ -571,43 +610,43 @@ for qtype_i in to_use_qtype:
                             filtered_s = qid_to_sid[question_i]
                             filtered_q = qid_to_vecq[question_i]
                             orig_story = qid_to_orig_s[question_i]
-
+                            answer=qid_to_answ[question_i]
                             # best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b},qid_to_bump[question_id])
                             best_context, ents = get_best_context_w_weight(filtered_s, filtered_q, orig_story, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b}, qid_to_bump[question_id], q_words)
                             to_check = qid_to_answ[question_i]
-
+                            fscore, prec, best_recall=get_fscore(best_context.text, answer)
                             # best_fm_ind = 0
                             # best_fm = 0
-                            best_recall_ind = 0
-                            best_recall = 0
-                            response = word_tokenize(best_context.text)
-                            # response = [token for token in best_context]  TODO: remove nltk dep
-                            # b_recall = 0
-                            # b_prec = 0
-                            for i,resp in enumerate(to_check):
-                                correct = 0
-                                cwords = set()
-                                for wrd in response:
-                                    w = wrd.lower().strip()
-                                    if w in to_check[i]:
-                                        if w not in cwords:
-                                            correct += 1
-                                            cwords.add(w)
-                                recall = correct/len(to_check[i])
-                                # prec = correct/len(response)
-                                # fm = 0
-                                # if recall+prec == 0:
-                                #     fm = 0
-                                # else:
-                                #     fm =(2*recall*prec)/(recall+prec)
-                                # if(fm > best_fm):
-                                #     best_fm = fm
-                                #     best_fm_ind = i
-                                #     b_recall = recall
-                                #     b_prec = prec
-                                if (recall > best_recall):
-                                    best_recall = recall
-                                    best_recall_ind = i
+                            # # best_recall_ind = 0
+                            # # best_recall = 0
+                            # # response = word_tokenize(best_context.text)
+                            # # # response = [token for token in best_context]  TODO: remove nltk dep
+                            # # # b_recall = 0
+                            # # # b_prec = 0
+                            # # for i,resp in enumerate(to_check):
+                            # #     correct = 0
+                            # #     cwords = set()
+                            # #     for wrd in response:
+                            # #         w = wrd.lower().strip()
+                            # #         if w in to_check[i]:
+                            # #             if w not in cwords:
+                            # #                 correct += 1
+                            # #                 cwords.add(w)
+                            # #     recall = correct/len(to_check[i])
+                            # #     # prec = correct/len(response)
+                            # #     # fm = 0
+                            # #     # if recall+prec == 0:
+                            # #     #     fm = 0
+                            # #     # else:
+                            # #     #     fm =(2*recall*prec)/(recall+prec)
+                            # #     # if(fm > best_fm):
+                            # #     #     best_fm = fm
+                            # #     #     best_fm_ind = i
+                            # #     #     b_recall = recall
+                            # #     #     b_prec = prec
+                                # # if (recall > best_recall):
+                                # #     best_recall = recall
+                                # #     best_recall_ind = i
 
                             # curr_fm_sum += best_fm
                             curr_recall_sum += best_recall
@@ -620,7 +659,7 @@ for qtype_i in to_use_qtype:
                         #     best_ofm = best_fm
                         #     best_w_b = curr_b
                         #     best_fm_sum = curr_fm_sum
-                        if (curr_recall_sum >= best_recall_sum):
+                        if (curr_recall_sum > best_recall_sum):
                             best_w_t = curr_weight_t
                             best_w_p = curr_weight_p
                             best_w_e = curr_weight_e
