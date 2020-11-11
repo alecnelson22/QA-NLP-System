@@ -337,7 +337,7 @@ def get_q_type(question, q_words):
             if q_2word_counts[q_type]['Inc Sim Weight']:
                 bump_word = question[i + 1].text
             return q_type, bump_word
-    print('stop')
+    print('Unrecognized question type!  Assigning "Generic".')
     return "Generic", bump_word
 
 # ===========================
@@ -387,7 +387,7 @@ q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 
 
 #######Build Dictionary for Question Types#######
-q_2word_counts = {}  # attribute dictionary
+q_2word_counts = np.load('./attribute_dictionary_MASTER', allow_pickle=True)
 
 id_to_type = {}  # link q to type
 q_type_set = set()
@@ -405,60 +405,69 @@ for story_id in list(questions.keys()):
         question = story_qa[question_id]['Question']
         answers = story_qa[question_id]['Answer']
         nlp_a = [nlp(a) for a in answers]
-        q_type = get_q_words_count(nlp(question), nlp_a)
+
+        q_type = get_q_type(nlp(question), q_words)
+        #q_type = get_q_words_count(nlp(question), nlp_a)
+
+        # if q_type not in q_2word_counts:
+        #     tmp = nlp(q_type)
+        #     q_type = tmp[0].text + ' ' + tmp[1].pos_
+        #     if q_type not in q_2word_counts:
+        #         q_type = 'Generic'
+
         id_to_type[question_id] = q_type
         q_type_set.add(q_type)
 
-new_q2 = {}
-for k1 in q_2word_counts.keys():
-    if q_2word_counts[k1]['Count'] < 10:
-        new_key = [token for token in nlp(k1)]
-        new_key = new_key[0].text + ' ' + new_key[1].pos_
-        if new_key not in new_q2:
-            new_q2[new_key] = q_2word_counts[k1]
-        else:
-            for k2 in q_2word_counts[k1].keys():
-                if k2 == 'POS' or k2 == 'ENT':
-                    for k3 in q_2word_counts[k1][k2].keys():
-                        if k3 not in new_q2[new_key][k2].keys():
-                            new_q2[new_key][k2][k3] = q_2word_counts[k1][k2][k3]
-                        else:
-                            new_q2[new_key][k2][k3] += q_2word_counts[k1][k2][k3]
-                elif k2 == "Inc Sim Weight":
-                    new_q2[new_key][k2] = q_2word_counts[k1][k2]
-                else:
-                    new_q2[new_key][k2] += q_2word_counts[k1][k2]
-    else:
-        new_q2[k1] = q_2word_counts[k1]
-q_2word_counts = new_q2
-get_avg_ans_len()
-
-# Normalize q_2word_counts values
-norm_keys = ['ENT', 'POS']  # values to normalize
-for q2 in q_2word_counts.keys():
-    for k in norm_keys:
-        count = 0
-        for item in q_2word_counts[q2][k].keys():
-            count += q_2word_counts[q2][k][item]
-        for item in q_2word_counts[q2][k].keys():
-            q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
-
-# Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
-# This is in case we come across a question we've never seen
-for k in q_2word_counts.keys():
-    count += q_2word_counts[k]['Count']
-nkeys = len(list(q_2word_counts.keys()))
-gen_keys = ['ENT', 'POS']
-generic_count = {'ENT': {}, 'POS': {}, 'Avg Ans Len': 5, 'Inc Sim Weight': False}
-for k1 in q_2word_counts.keys():
-    cw = q_2word_counts[k1]['Count'] / count
-    for k2 in gen_keys:
-        for k3 in q_2word_counts[k1][k2].keys():
-            if k3 not in generic_count[k2]:
-                generic_count[k2][k3] = q_2word_counts[k1][k2][k3] * cw
-            else:
-                generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
-q_2word_counts['Generic'] = generic_count
+# new_q2 = {}
+# for k1 in q_2word_counts.keys():
+#     if q_2word_counts[k1]['Count'] < 10:
+#         new_key = [token for token in nlp(k1)]
+#         new_key = new_key[0].text + ' ' + new_key[1].pos_
+#         if new_key not in new_q2:
+#             new_q2[new_key] = q_2word_counts[k1]
+#         else:
+#             for k2 in q_2word_counts[k1].keys():
+#                 if k2 == 'POS' or k2 == 'ENT':
+#                     for k3 in q_2word_counts[k1][k2].keys():
+#                         if k3 not in new_q2[new_key][k2].keys():
+#                             new_q2[new_key][k2][k3] = q_2word_counts[k1][k2][k3]
+#                         else:
+#                             new_q2[new_key][k2][k3] += q_2word_counts[k1][k2][k3]
+#                 elif k2 == "Inc Sim Weight":
+#                     new_q2[new_key][k2] = q_2word_counts[k1][k2]
+#                 else:
+#                     new_q2[new_key][k2] += q_2word_counts[k1][k2]
+#     else:
+#         new_q2[k1] = q_2word_counts[k1]
+# q_2word_counts = new_q2
+# get_avg_ans_len()
+#
+# # Normalize q_2word_counts values
+# norm_keys = ['ENT', 'POS']  # values to normalize
+# for q2 in q_2word_counts.keys():
+#     for k in norm_keys:
+#         count = 0
+#         for item in q_2word_counts[q2][k].keys():
+#             count += q_2word_counts[q2][k][item]
+#         for item in q_2word_counts[q2][k].keys():
+#             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
+#
+# # Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
+# # This is in case we come across a question we've never seen
+# for k in q_2word_counts.keys():
+#     count += q_2word_counts[k]['Count']
+# nkeys = len(list(q_2word_counts.keys()))
+# gen_keys = ['ENT', 'POS']
+# generic_count = {'ENT': {}, 'POS': {}, 'Avg Ans Len': 5, 'Inc Sim Weight': False}
+# for k1 in q_2word_counts.keys():
+#     cw = q_2word_counts[k1]['Count'] / count
+#     for k2 in gen_keys:
+#         for k3 in q_2word_counts[k1][k2].keys():
+#             if k3 not in generic_count[k2]:
+#                 generic_count[k2][k3] = q_2word_counts[k1][k2][k3] * cw
+#             else:
+#                 generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
+# q_2word_counts['Generic'] = generic_count
 
 
 
@@ -480,7 +489,7 @@ for story_id in list(questions.keys()):
         tagged_q = [[token, i] for i, token in enumerate(nlp(question))]
         filtered_q = filter_by_POS(tagged_q, filter_pos_tags)
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
-        q_type, bump =  get_q_type(nlp(question), q_words) #        q_type, bump_word = get_q_type(nlp(question), q_words)
+        q_type, bump = get_q_type(nlp(question), q_words)  # q_type, bump_word = get_q_type(nlp(question), q_words)
         qid_to_bump[question_id] = bump
 
         # vectorized_q = vectorize_list(filtered_q)
@@ -522,7 +531,6 @@ for typ in q_type_set:
 #             if(wt=="k"):
 #                 best_params[typ][wt][w]=[]
 best_params_per_story={}
-
 
 #######Load Data####### these are test sets
 stories = {}
@@ -645,7 +653,7 @@ for qtype_i in to_use_qtype:
     print('for type',qtype_i)
     # print(best_context, response)
     # print("overall best fmeasure= ",best_fm_sum, 'num of qs', len(qtype_to_id[qtype_i]))
-    print("overall best fmeasure= ", best_recall_sum, 'num of qs', len(qtype_to_id[qtype_i]))
+    print("overall best recall= ", best_recall_sum, 'num of qs', len(qtype_to_id[qtype_i]))
     if len(qtype_to_id[qtype_i])>0:
         # print('ave', best_fm_sum/len(qtype_to_id[qtype_i]))
         print('ave', best_recall_sum / len(qtype_to_id[qtype_i]))
