@@ -406,7 +406,7 @@ for story_id in list(questions.keys()):
         answers = story_qa[question_id]['Answer']
         nlp_a = [nlp(a) for a in answers]
 
-        q_type = get_q_type(nlp(question), q_words)
+        q_type, bw = get_q_type(nlp(question), q_words)
         #q_type = get_q_words_count(nlp(question), nlp_a)
 
         # if q_type not in q_2word_counts:
