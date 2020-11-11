@@ -142,39 +142,28 @@ def get_best_context_w_pos(story, story_pos, question, question_pos,k):
 
 
 #input: story & q are spacy objs. q_type is the question type, weight dict defines how to distubute weights among attributes
-def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight_dict, bump_word):
-    filter_pos_tags = ['PUNCT', 'DET', 'SPACE']
-    stop_words = nlp.Defaults.stop_words
-
-    best_context = get_context_words_span(story, k, 0)
+def get_best_context_w_weight(story_data, question_data, orig_story, attribute_dict, k, q_type, weight_dict, bump_word, q_words):
+    best_context = get_context_words_span(story_data, k, 0)
     best_context_weight = 0
-    for t_idx in range(len(story)):
-        context_words = get_context_words_span(story, k, t_idx)  # context_words is a spacy doc
+    for t_idx in range(len(story_data)):
+        context_words = get_context_words_span(story_data, k, t_idx)
         curr_context_weight = 0
         #word level comparisons
-        for q_word in question:
+        for q_word in question_data:
+            if q_word[0].text.lower() in q_words:
+                continue
             for s_word in context_words:
-                if s_word.text in stop_words:
-                    continue
-                if s_word.pos_ in filter_pos_tags:
-                    continue
                 for w_type in weight_dict: 
                     if(w_type == 'TEXT'):
-
-                        if q_word.text == bump_word and q_word.similarity(s_word) > .75:
+                        if q_word[0].text == bump_word and q_word[0].similarity(s_word[0]) > .75:
                             b_weight = weight_dict["BUMP"]
                         else:
                             b_weight = 1
-
-                        curr_context_weight += q_word.similarity(s_word) * weight_dict[w_type] * b_weight
-
+                        curr_context_weight += q_word[0].similarity(s_word[0]) * weight_dict[w_type] * b_weight
                     elif(w_type == 'POS'):
-
                         curr_attr = attribute_dict[q_type][w_type]
-
-                        if(s_word.pos_ in curr_attr):
-                            curr_context_weight += curr_attr[s_word.pos_] * weight_dict[w_type]
-
+                        if(s_word[0].pos_ in curr_attr):
+                            curr_context_weight += curr_attr[s_word[0].pos_] * weight_dict[w_type]
                     elif(w_type =='ENT'):
                         continue
                     else:
@@ -182,7 +171,18 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
 
         #context level comparisons
         if('ENT' in weight_dict):
-            entities = [ent.label_ for ent in context_words.ents]
+            entities = []
+            # Check if current context contains any entities
+            tokenized_s = [token for token in orig_story]
+            context_start_idx = tokenized_s[context_words[0][1]].idx
+            context_end_idx = tokenized_s[context_words[-1][1]].idx + len(tokenized_s[context_words[-1][1]].text) - 1
+            for ent in orig_story.ents:
+                start_idx = ent.start_char
+                end_idx = ent.end_char
+                if start_idx >= context_start_idx and end_idx <= context_end_idx:
+                    entities.append(ent)
+                elif start_idx > context_end_idx:
+                    break
 
             # if q_type in attribute_dict:
             #     curr_attr = attribute_dict[q_type]["ENT"]
@@ -191,34 +191,27 @@ def get_best_context_w_weight(story, question, attribute_dict, k, q_type, weight
             #     curr_attr = attribute_dict["Generic"]["ENT"]
 
             curr_attr = attribute_dict[q_type]['ENT']
-
             for ent in entities:
-                if ent in curr_attr:
-                    # print(ent, file=sys.stderr)
-                    curr_context_weight += curr_attr[ent] * weight_dict[w_type]
-
-        # print(curr_context_weight)
+                if ent.label_ in curr_attr:
+                    # curr_context_weight += curr_attr[ent.label_] * weight_dict['ENT']
+                    curr_context_weight += curr_attr[ent.label_] * weight_dict['ENT'] * 4
         if curr_context_weight > best_context_weight:
             best_context_weight = curr_context_weight
             best_context = context_words
-    # print(best_context_weight, file=sys.stderr)
-    return best_context
+            best_ents = entities
+    return best_context, best_ents
 
 
 # Removes any words with POS in filter tags from text, returns filtered text
 def filter_by_POS(tagged_text, filter_tags):
-    # tagged_text = get_POS_tags(text)
-    # tagged_text = [[token.text, token.pos_] for token in text]
-    pos_text = [tagged[1] for tagged in tagged_text]
-    # word_text = [tagged[0] for tagged in tagged_text]
+    pos_text = [tagged[0].pos_ for tagged in tagged_text]
     filter_idxs = [idx for idx in range(len(pos_text)) if pos_text[idx] in filter_tags]
-    filtered_text = [[w[0],w[2]] for i, w in enumerate(tagged_text) if i not in filter_idxs]
-    filtered_pos = [w for i, w in enumerate(pos_text) if i not in filter_idxs]
-    return filtered_text, filtered_pos
+    filtered_text = [w for i, w in enumerate(tagged_text) if i not in filter_idxs]
+    return filtered_text
 
 
 def filter_by_stopwords(text, stopwords):
-    filtered_text = [[w[0], w[1]] for w in text if w[0] not in stopwords]
+    filtered_text = [w for w in text if w[0].text not in stopwords]
     return filtered_text
 
 
@@ -389,74 +382,73 @@ stop_words = nlp.Defaults.stop_words
 q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 
 ####################################
+#
+# ######Build Dictionary for Question Types#######
+# q_2word_counts = {}  # attribute dictionary
+# id_to_type = {}  # link q to type
+# for story_id in list(questions.keys()):
+#     story_qa = questions[story_id]
+#     for question_id in list(story_qa.keys()):
+#         question = story_qa[question_id]['Question']
+#         answers = story_qa[question_id]['Answer']
+#         tokenized_q = [token.text for token in nlp(question)]
+#         nlp_a = [nlp(a) for a in answers]
+#         q_type = get_q_words_count(nlp(question), nlp_a)
+#         id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
+# # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+#
+#
+# new_q2 = {}
+# for k1 in q_2word_counts.keys():
+#     # if q_2word_counts[k1] < 10:
+#     #     new_key = [token for token in nlp(k1)]
+#     #     new_key = new_key[0].text + ' ' + new_key[1].pos_
+#     #     if new_key not in new_q2:
+#     #         new_q2[new_key] = q_2word_counts[k1]
+#     #     else:
+#     #         new_q2[new_key] += q_2word_counts[k1]
+#     # else:
+#     #     new_q2[k1] = q_2word_counts[k1]
+#     if q_2word_counts[k1]['Count'] < 10:
+#         new_key = [token for token in nlp(k1)]
+#         new_key = new_key[0].text + ' ' + new_key[1].pos_
+#         if new_key not in new_q2:
+#             new_q2[new_key] = q_2word_counts[k1]
+#         else:
+#             for k2 in q_2word_counts[k1].keys():
+#                 if k2 == 'POS' or k2 == 'ENT':
+#                     for k3 in q_2word_counts[k1][k2].keys():
+#                         if k3 not in new_q2[new_key][k2].keys():
+#                             new_q2[new_key][k2][k3] = q_2word_counts[k1][k2][k3]
+#                         else:
+#                             new_q2[new_key][k2][k3] += q_2word_counts[k1][k2][k3]
+#                 elif k2 == "Inc Sim Weight":
+#                     new_q2[new_key][k2] = q_2word_counts[k1][k2]
+#                 else:
+#                     new_q2[new_key][k2] += q_2word_counts[k1][k2]
+#     else:
+#         new_q2[k1] = q_2word_counts[k1]
+# q_2word_counts = new_q2
+# # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+# # np.save('sorted_qtypes', q_2word_counts)
+# get_avg_ans_len()
+#
+# # Normalize q_2word_counts values
+# norm_keys = ['ENT', 'POS']  # values to normalize
+# for q2 in q_2word_counts.keys():
+#     for k in norm_keys:
+#         count = 0
+#         for item in q_2word_counts[q2][k].keys():
+#             count += q_2word_counts[q2][k][item]
+#         for item in q_2word_counts[q2][k].keys():
+#             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
 
-
-######Build Dictionary for Question Types#######
-q_2word_counts = {}  # attribute dictionary
-id_to_type = {}  # link q to type
-for story_id in list(questions.keys()):
-    story_qa = questions[story_id]
-    for question_id in list(story_qa.keys()):
-        question = story_qa[question_id]['Question']
-        answers = story_qa[question_id]['Answer']
-        tokenized_q = [token.text for token in nlp(question)]
-        nlp_a = [nlp(a) for a in answers]
-        q_type = get_q_words_count(nlp(question), nlp_a)
-        id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
-# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
-
-
-new_q2 = {}
-for k1 in q_2word_counts.keys():
-    # if q_2word_counts[k1] < 10:
-    #     new_key = [token for token in nlp(k1)]
-    #     new_key = new_key[0].text + ' ' + new_key[1].pos_
-    #     if new_key not in new_q2:
-    #         new_q2[new_key] = q_2word_counts[k1]
-    #     else:
-    #         new_q2[new_key] += q_2word_counts[k1]
-    # else:
-    #     new_q2[k1] = q_2word_counts[k1]
-    if q_2word_counts[k1]['Count'] < 10:
-        new_key = [token for token in nlp(k1)]
-        new_key = new_key[0].text + ' ' + new_key[1].pos_
-        if new_key not in new_q2:
-            new_q2[new_key] = q_2word_counts[k1]
-        else:
-            for k2 in q_2word_counts[k1].keys():
-                if k2 == 'POS' or k2 == 'ENT':
-                    for k3 in q_2word_counts[k1][k2].keys():
-                        if k3 not in new_q2[new_key][k2].keys():
-                            new_q2[new_key][k2][k3] = q_2word_counts[k1][k2][k3]
-                        else:
-                            new_q2[new_key][k2][k3] += q_2word_counts[k1][k2][k3]
-                elif k2 == "Inc Sim Weight":
-                    new_q2[new_key][k2] = q_2word_counts[k1][k2]
-                else:
-                    new_q2[new_key][k2] += q_2word_counts[k1][k2]
-    else:
-        new_q2[k1] = q_2word_counts[k1]
-q_2word_counts = new_q2
-# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
-# np.save('sorted_qtypes', q_2word_counts)
-get_avg_ans_len()
-
-# Normalize q_2word_counts values
-norm_keys = ['ENT', 'POS']  # values to normalize
-for q2 in q_2word_counts.keys():
-    for k in norm_keys:
-        count = 0
-        for item in q_2word_counts[q2][k].keys():
-            count += q_2word_counts[q2][k][item]
-        for item in q_2word_counts[q2][k].keys():
-            q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
-
-f = open('attribute_dictionary', 'wb')
-pickle.dump(q_2word_counts, f)
-f.close()
+# f = open('attribute_dictionary', 'wb')
+# pickle.dump(q_2word_counts, f)
+# f.close()
 
 # #######LOAD INPUT FOR TESTING #################
-# q_2word_counts=np.load('./attribute_dictionary', allow_pickle=True)
+q_2word_counts=np.load('./attribute_dictionary_MASTER', allow_pickle=True)
 loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
 count = 0
 
@@ -514,30 +506,26 @@ for story_id in ordered_ids:
     story = test_stories[story_id]['TEXT']
 
     ####NEW####
-    story = nlp(story)
     # story_sents = list(nlp2(story).sents)
     # test1 = [token for token in nlp(story_sents[0].text)]
     # test2 = [token for token in nlp(story)]
-    tagged_text = [[token.text, token.pos_, i] for i, token in enumerate(story)]
-    filtered_s, filtered_s_pos = filter_by_POS(tagged_text, filter_pos_tags)
+    tagged_text = [[token, i] for i, token in enumerate(nlp(story))]
+    filtered_s = filter_by_POS(tagged_text, filter_pos_tags)
     filtered_s = filter_by_stopwords(filtered_s, stop_words)
-    filtered_s_text = [w[0] for w in filtered_s]
-    ###########
-    vectorized_s = vectorize_list(filtered_s_text)
+    # vectorized_s = vectorize_list(filtered_s_text)
 
     for question_id in ordered_qs[story_id]:
         question = story_qa[question_id]['Question']
-        answer = story_qa[question_id]['Answer']  # this is a list
+        answer = story_qa[question_id]['Answer']
         # q_type = id_to_type[question_id]  # TO DO: This takes information from a pre-processing step, thus should be removed
         q_type, bump_word = get_q_type(nlp(question), q_words)
-        tagged_q = [[token.text, token.pos_, i] for i, token in enumerate(nlp(question))]
-        filtered_q, filtered_q_pos = filter_by_POS(tagged_q, filter_pos_tags)
+        tagged_q = [[token, i] for i, token in enumerate(nlp(question))]
+        filtered_q = filter_by_POS(tagged_q, filter_pos_tags)
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
-        filtered_q_text = [w[0] for w in filtered_q]
-        vectorized_q = vectorize_list(filtered_q_text)
+        # vectorized_q = vectorize_list(filtered_q_text)
 
         # k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
-        k = 6
+        k = 5
 
         q_type2 = q_type.split()
         if q_type2[1].islower():
@@ -552,8 +540,7 @@ for story_id in ordered_ids:
             #     used_weights = loaded_weights[q_type2]
             used_weights = loaded_weights[q_type2]
 
-        # best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, used_weights["K"], q_type, used_weights, bump_word)
-        best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, k, q_type, used_weights, bump_word)
+        best_context, ents = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k, q_type, used_weights, bump_word, q_words)
         
         # print(question,file=sys.stderr)
         # print(story_qa[question_id]['Answer'],file=sys.stderr)
@@ -561,7 +548,11 @@ for story_id in ordered_ids:
         # print('\n',file=sys.stderr)
         print('QuestionID: ', question)
         print('Answer: ', answer)
-        print('Answer: ' + best_context.text + "\n")
+        ans = ''
+        for w in best_context:
+            ans += w[0].text + ' '
+        print('Answer: ' + ans)
+        print('Entities in answer: ', [e.label_ for e in ents], '\n')
 #         outputs.append([question_id, best_context])
 
 
