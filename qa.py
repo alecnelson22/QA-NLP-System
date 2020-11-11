@@ -350,12 +350,12 @@ for fname in os.listdir(os.getcwd() + '/data'):
     questions[id] = question_data
 
 # Test set 1
-for fname in os.listdir(os.getcwd() + '/testset1'):
-    id = fname.split('.')[0]
-    story_data = load_story('testset1/' + id + '.story')
-    question_data, _ = load_QA('testset1/' + id + '.answers')
-    stories[id] = story_data
-    questions[id] = question_data
+# for fname in os.listdir(os.getcwd() + '/testset1'):
+#     id = fname.split('.')[0]
+#     story_data = load_story('testset1/' + id + '.story')
+#     question_data, _ = load_QA('testset1/' + id + '.answers')
+#     stories[id] = story_data
+#     questions[id] = question_data
 
 for fname in os.listdir(os.getcwd() + '/extra-data'):
     if '.answers' in fname:
@@ -396,8 +396,8 @@ q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 #         q_type = get_q_words_count(nlp(question), nlp_a)
 #         id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
 # # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
-#
-#
+
+
 # new_q2 = {}
 # for k1 in q_2word_counts.keys():
 #     # if q_2word_counts[k1] < 10:
@@ -432,7 +432,7 @@ q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 # # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
 # # np.save('sorted_qtypes', q_2word_counts)
 # get_avg_ans_len()
-#
+
 # # Normalize q_2word_counts values
 # norm_keys = ['ENT', 'POS']  # values to normalize
 # for q2 in q_2word_counts.keys():
@@ -443,32 +443,32 @@ q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 #         for item in q_2word_counts[q2][k].keys():
 #             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
 
-# f = open('attribute_dictionary', 'wb')
-# pickle.dump(q_2word_counts, f)
-# f.close()
 
 # #######LOAD INPUT FOR TESTING #################
-q_2word_counts=np.load('./attribute_dictionary_MASTER', allow_pickle=True)
+q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
 loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
 count = 0
 
 # Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
 # This is in case we come across a question we've never seen
-for k in q_2word_counts.keys():
-    count += q_2word_counts[k]['Count']
-nkeys = len(list(q_2word_counts.keys()))
-gen_keys = ['ENT', 'POS']
-generic_count = {'ENT': {}, 'POS': {}, 'Avg Ans Len': 5, 'Inc Sim Weight': False}
-for k1 in q_2word_counts.keys():
-    cw = q_2word_counts[k1]['Count'] / count
-    for k2 in gen_keys:
-        for k3 in q_2word_counts[k1][k2].keys():
-            if k3 not in generic_count[k2]:
-                generic_count[k2][k3] = q_2word_counts[k1][k2][k3] * cw
-            else:
-                generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
-q_2word_counts['Generic'] = generic_count
-
+# for k in q_2word_counts.keys():
+#     count += q_2word_counts[k]['Count']
+# nkeys = len(list(q_2word_counts.keys()))
+# gen_keys = ['ENT', 'POS']
+# generic_count = {'ENT': {}, 'POS': {}, 'Avg Ans Len': 5, 'Inc Sim Weight': False}
+# for k1 in q_2word_counts.keys():
+#     cw = q_2word_counts[k1]['Count'] / count
+#     for k2 in gen_keys:
+#         for k3 in q_2word_counts[k1][k2].keys():
+#             if k3 not in generic_count[k2]:
+#                 generic_count[k2][k3] = q_2word_counts[k1][k2][k3] * cw
+#             else:
+#                 generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
+# q_2word_counts['Generic'] = generic_count
+# f = open('attribute_dictionary_testing', 'wb')
+# pickle.dump(q_2word_counts, f)
+# f.close()
+# asdf
 
 
 test_stories={}
