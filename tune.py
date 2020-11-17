@@ -613,7 +613,7 @@ for qtype_i in to_use_qtype:
                             answer=qid_to_answ[question_i]
                             # best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b},qid_to_bump[question_id])
                             best_context, ents = get_best_context_w_weight(filtered_s, filtered_q, orig_story, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b}, qid_to_bump[question_id], q_words)
-                            to_check = qid_to_answ[question_i]
+                            # to_check = qid_to_answ[question_i]
                             fscore, prec, best_recall=get_fscore(best_context.text, answer)
                             # best_fm_ind = 0
                             # best_fm = 0
