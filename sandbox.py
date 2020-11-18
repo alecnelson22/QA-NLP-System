@@ -21,6 +21,7 @@ print('loading data...')
 # summary=np.load('./summary', allow_pickle=True)
 recalls=np.load('./qtype_recall_noextra', allow_pickle=True)
 summary=np.load('./summary_noextra', allow_pickle=True)
+attribute_dictionary=np.load('./attribute_dictionary_testing', allow_pickle=True)
 # f = open('./summary')
 # summary=pickle.load(f)
 nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
@@ -74,6 +75,7 @@ for typ in bad_questions:
         continue
     
     print('-------------------FOR TYPE ',typ,'ratio',good_counts[typ]/bad_counts[typ],'bad questions are -----------------------------')
+    print('attr dictionary ', attribute_dictionary[typ])
     print('---------------------------------------------------------------------------------------------------------------------------')
     
     for q,quest in enumerate(bad_questions[typ]):
