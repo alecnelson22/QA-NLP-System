@@ -83,8 +83,10 @@ for typ in bad_questions:
         print('---------------------------------')
         print('question',summary[typ][q]['question'])
         print('key ', summary[typ][q]['answer-key'])
-        print('best_sentence', summary[typ][q]['best_sentence'],'\n')
+        print('best_sentence', summary[typ][q]['best_sentence'])
         print('Entities in sentence: ', ents)
+        print('') 
+
         print('--answer characteristics--')
         for ans in summary[typ][q]['answer-key']:
             nlp_key=nlp(ans)
