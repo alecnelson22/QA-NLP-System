@@ -617,7 +617,7 @@ for typ in type_to_score:
     type_to_score_ave[typ]=mean
 
 ordered={k: v for k, v in sorted(type_to_score_ave.items(), key=lambda item: item[1])}
-print(orderedfile=sys.stderr)
+print(ordered, file=sys.stderr)
 # for output in outputs:
 #     print('QuestionID: '+output[0])
 #     print('Answer: ' + output[1] + "\n")
