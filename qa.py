@@ -156,23 +156,24 @@ def get_best_context_w_weight(story_data, question_data, orig_story, attribute_d
                 for w_type in weight_dict: 
                     if (w_type == 'text_weight'):
                         if q_word[0].has_vector and s_word[0].has_vector:
-                            if q_word[0].text == bump_word and q_word[0].similarity(s_word[0]) > .75:
-                                b_weight = weight_dict["bump_weight"]
-                            else:
-                                b_weight = 1
+                            if q_word[0].similarity(s_word[0]) > 0:
+                                if q_word[0].text == bump_word and q_word[0].similarity(s_word[0]) > .75:
+                                    b_weight = weight_dict["bump_weight"]
+                                else:
+                                    b_weight = 1
 
-                            # # This is here just to gain some insight into word pairs
-                            # # and their similarity scores
-                            # # Perhaps if words' similarity scores fall below a certain
-                            # # threshold then we don't allow it to contribute to the
-                            # # overall context weight?  Also, ignore negative sim scores?
-                            # sim = q_word[0].similarity(s_word[0])
-                            # w_pair = q_word[0].text + ' ' + s_word[0].text
-                            # if w_pair not in sims:
-                            #     sims.append(w_pair)
-                            #     print(w_pair, sim)
+                                # # This is here just to gain some insight into word pairs
+                                # # and their similarity scores
+                                # # Perhaps if words' similarity scores fall below a certain
+                                # # threshold then we don't allow it to contribute to the
+                                # # overall context weight?  Also, ignore negative sim scores?
+                                # sim = q_word[0].similarity(s_word[0])
+                                # w_pair = q_word[0].text + ' ' + s_word[0].text
+                                # if w_pair not in sims:
+                                #     sims.append(w_pair)
+                                #     print(w_pair, sim)
 
-                            curr_context_weight += q_word[0].similarity(s_word[0]) * weight_dict[w_type] * b_weight
+                                curr_context_weight += q_word[0].similarity(s_word[0]) * weight_dict[w_type] * b_weight
                     elif (w_type == 'pos_weight'):
                         curr_attr = attribute_dict[q_type]['POS']
                         if(s_word[0].pos_ in curr_attr):
@@ -218,11 +219,12 @@ def get_sentence_weight(sentence, question_data, orig_story, attribute_dict, q_t
             for w_type in weight_dict:
                 if(w_type == 'text_weight'):
                     if q_word[0].has_vector and s_word.has_vector:
-                        if q_word[0].text == bump_word and q_word[0].similarity(s_word) > .75:
-                            b_weight = weight_dict["bump_weight"]
-                        else:
-                            b_weight = 1
-                        sentence_weight += q_word[0].similarity(s_word) * weight_dict[w_type] * b_weight
+                        if q_word[0].similarity(s_word) > 0:
+                            if q_word[0].text == bump_word and q_word[0].similarity(s_word) > .75:
+                                b_weight = weight_dict["bump_weight"]
+                            else:
+                                b_weight = 1
+                            sentence_weight += q_word[0].similarity(s_word) * weight_dict[w_type] * b_weight
                 elif(w_type == 'pos_weight'):
                     curr_attr = attribute_dict[q_type]['POS']
                     if(s_word.pos_ in curr_attr):
@@ -426,22 +428,25 @@ def get_fscore(response, key):
 def ent_trim_sentence(q_type, sentence, ent_dict):
     sorted_ent = [k for k, v in sorted(ent_dict[q_type]['ENT'].items(), key=lambda item: item[1], reverse=True)]
     ents_ans = []
+    try_again = True
 
-    for k in sorted_ent:
-        for ent in sentence.ents:
-            if ent.label_ == k:
-                ents_ans.append(ent)
-        if len(ents_ans) > 0:
-            break
+    k = sorted_sents[0]
+    # for k in sorted_ent:
+    for ent in sentence.ents:
+        if ent.label_ == k:
+            ents_ans.append(ent)
+    if len(ents_ans) > 0:
+        try_again = False
+        # break
 
     if len(ents_ans) == 0:
-        return sentence
+        return sentence, try_again
     else:
         s = ''
         for e in ents_ans:
             s += e.text + ' '
         s = s.rstrip()
-        return s
+        return s, try_again
 
 # ===========================
 # ===========================
@@ -674,9 +679,11 @@ for story_id in ordered_ids:
                 sents.append(w[0].sent)
         # Find the sentence with the highest per-word weight
         best_weight = 0
+        sorted_sents = {}
         for i,s in enumerate(sents):
             st = [token for token in s]
             sentence_weight = get_sentence_weight(st, filtered_q, nlp(story), q_2word_counts, q_type, used_weights, bump_word, q_words)
+            sorted_sents[str(sentence_weight)] = s
             if i == 0:
                 best_sentence = s
                 best_weight = sentence_weight
@@ -684,13 +691,20 @@ for story_id in ordered_ids:
                 best_weight = sentence_weight
                 best_sentence = s
 
+        sorted_sents = {k: v for k, v in sorted(sorted_sents.items(), key=lambda item: item[1], reverse=True)}
+
         best_context_text = ''
         for t in best_context:
             best_context_text += t[0].text + ' '
 
         # Entity-based sentence trim
         if q_type in ent_dict:
-            best_sentence = ent_trim_sentence(q_type, best_sentence, ent_dict)
+            for s in sorted_sents:
+                best_sentence, try_again = ent_trim_sentence(q_type, best_sentence, ent_dict)
+                if not try_again:
+                    break
+            if try_again:
+                best_sentence = sorted_sents[list(sorted_sents.keys())[0]]
 
         print('Question: ', question)
         print('Best context: ', best_context_text)
