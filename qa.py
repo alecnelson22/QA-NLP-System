@@ -428,6 +428,28 @@ def get_fscore(response, key):
             b_recall = recall
             b_prec = prec
     return best_fm,b_prec, b_recall
+
+
+def ent_trim_sentence(q_type, sentence, ent_dict):
+    sorted_ent = [k for k, v in sorted(ent_dict[q_type]['ENT'].items(), key=lambda item: item[1], reverse=True)]
+    ents_ans = []
+
+    for k in sorted_ent:
+        for ent in sentence.ents:
+            if ent.label_ == k:
+                ents_ans.append(ent)
+        if len(ents_ans) > 0:
+            break
+
+    if len(ents_ans) == 0:
+        return sentence
+    else:
+        s = ''
+        for e in ents_ans:
+            s += e.text + ' '
+        s = s.rstrip()
+        return nlp(s)
+
 # ===========================
 # ===========================
 
@@ -557,6 +579,7 @@ sims = []
 # #######LOAD INPUT FOR TESTING #################
 q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
 loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
+ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
 
 # loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
 count = 0
@@ -697,10 +720,11 @@ for story_id in ordered_ids:
         for t in best_context:
             best_context_text += t[0].text + ' '
 
-        print('Question: ', question,file=sys.stderr)
-        print('Best context: ', best_context_text,file=sys.stderr)
-        print('Best sentence: ', best_sentence,file=sys.stderr)
-        print('Actual: ', answer,file=sys.stderr )
+        orig_sentence=best_sentence
+        # print('Question: ', question,file=sys.stderr)
+        # print('Best context: ', best_context_text,file=sys.stderr)
+        # print('Best sentence: ', best_sentence,file=sys.stderr)
+        # print('Actual: ', answer,file=sys.stderr )
         
         k = math.ceil(q_2word_counts[used_type]['Avg Ans Len'] / 2)
         best_sentence_tokens=[[token, i] for i, token in enumerate(best_sentence)]
@@ -712,6 +736,19 @@ for story_id in ordered_ids:
         # for t in best_response_res:
         #     best_response += t[0].text + ' '
         # print('best response', best_response,file=sys.stderr)
+
+        # Entity-based sentence trim
+        if q_type in ent_dict:
+            best_sentence = ent_trim_sentence(q_type, best_sentence, ent_dict)
+
+        print('Question: ', question,file=sys.stderr)
+        print('Best context: ', best_context_text,file=sys.stderr)
+        print('Best sentence: ', best_sentence,file=sys.stderr)
+        print('Best original sentence: ', orig_sentence,file=sys.stderr)
+
+        print('Actual: ', answer, '\n',file=sys.stderr)
+
+
 #         # print(question,file=sys.stderr)
 #         # print(story_qa[question_id]['Answer'],file=sys.stderr)
 #         # print(best_context,file=sys.stderr)
