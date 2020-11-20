@@ -280,6 +280,7 @@ def get_q_words_count(nlp_q, nlp_a):
     a_lens = [len(a) for a in tokenized_a]
     for i, w in enumerate(tokenized_q):
         if w.lower() in q_words:
+            q2 = w.lower() + ' ' + nlp_q[i + 1].text
             increase_sim_weight = False
             # I started going through the question types one-by one and recognizing some special cases
             # Here I outline those cases, while also clustering the question types into broader categories
@@ -456,12 +457,12 @@ def ent_trim_sentence(q_type, sentences, ent_dict):
 stories = {}
 questions = {}
 test_answer_key = {}
-# for fname in os.listdir(os.getcwd() + '/data'):
-#     id = fname.split('.')[0]
-#     story_data = load_story('data/' + id + '.story')
-#     question_data, _ = load_QA('data/' + id + '.answers')
-#     stories[id] = story_data
-#     questions[id] = question_data
+for fname in os.listdir(os.getcwd() + '/data'):
+    id = fname.split('.')[0]
+    story_data = load_story('data/' + id + '.story')
+    question_data, _ = load_QA('data/' + id + '.answers')
+    stories[id] = story_data
+    questions[id] = question_data
 
 # Test set 1
 for fname in os.listdir(os.getcwd() + '/testset1'):
@@ -469,17 +470,18 @@ for fname in os.listdir(os.getcwd() + '/testset1'):
     story_data = load_story('testset1/' + id + '.story')
     question_data, _ = load_QA('testset1/' + id + '.answers')
     stories[id] = story_data
+    questions[id] = question_data
     test_answer_key[id] = question_data
 
-# for fname in os.listdir(os.getcwd() + '/extra-data'):
-#     if '.answers' in fname:
-#         id = fname.split('.answers')[0]
-#         question_data, _ = load_QA('extra-data/' + id + '.answers')
-#         questions[id] = question_data
-#     else:
-#         id = fname.split('.story')[0]
-#         story_data = load_story('extra-data/' + id + '.story')
-#         stories[id] = story_data
+for fname in os.listdir(os.getcwd() + '/extra-data'):
+    if '.answers' in fname:
+        id = fname.split('.answers')[0]
+        question_data, _ = load_QA('extra-data/' + id + '.answers')
+        questions[id] = question_data
+    else:
+        id = fname.split('.story')[0]
+        story_data = load_story('extra-data/' + id + '.story')
+        stories[id] = story_data
 
 #######yper parameters#######
 # k = 5
@@ -500,7 +502,7 @@ sims = []
 
 ####################################
 #
-# ######Build Dictionary for Question Types#######
+# # ######Build Dictionary for Question Types#######
 # q_2word_counts = {}  # attribute dictionary
 # id_to_type = {}  # link q to type
 # for story_id in list(questions.keys()):
@@ -513,7 +515,7 @@ sims = []
 #         q_type = get_q_words_count(nlp(question), nlp_a)
 #         id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
 # # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
-
+#
 # new_q2 = {}
 # for k1 in q_2word_counts.keys():
 #     # if q_2word_counts[k1] < 10:
@@ -548,7 +550,7 @@ sims = []
 # # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
 # # np.save('sorted_qtypes', q_2word_counts)
 # get_avg_ans_len()
-
+#
 # # Normalize q_2word_counts values
 # norm_keys = ['ENT', 'POS']  # values to normalize
 # for q2 in q_2word_counts.keys():
@@ -558,18 +560,9 @@ sims = []
 #             count += q_2word_counts[q2][k][item]
 #         for item in q_2word_counts[q2][k].keys():
 #             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
-
-
-# #######LOAD INPUT FOR TESTING #################
-q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
-loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
-ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
-
-# loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
-count = 0
-
-# Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
-# This is in case we come across a question we've never seen
+#
+# # Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
+# # This is in case we come across a question we've never seen
 # for k in q_2word_counts.keys():
 #     count += q_2word_counts[k]['Count']
 # nkeys = len(list(q_2word_counts.keys()))
@@ -587,8 +580,24 @@ count = 0
 # f = open('attribute_dictionary_testing', 'wb')
 # pickle.dump(q_2word_counts, f)
 # f.close()
-# asdf
 
+# #######LOAD INPUT FOR TESTING #################
+q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
+loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
+ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
+
+# q_to_add = ['how ADJ', 'how much', 'how many', 'how old', 'when was', 'what day']
+# ent_d = {}
+# for k in q_2word_counts:
+#     if k in q_to_add:
+#         ent_d[k] = q_2word_counts[k]
+# f = open('ent_prob_dict', 'wb')
+# pickle.dump(ent_d, f)
+# f.close()
+
+
+# loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
+count = 0
 
 test_stories={}
 test_questions={}
