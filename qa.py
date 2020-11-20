@@ -421,6 +421,28 @@ def get_fscore(response, key):
             b_recall = recall
             b_prec = prec
     return best_fm,b_prec, b_recall
+
+
+def ent_trim_sentence(q_type, sentence, ent_dict):
+    sorted_ent = [k for k, v in sorted(ent_dict[q_type]['ENT'].items(), key=lambda item: item[1], reverse=True)]
+    ents_ans = []
+
+    for k in sorted_ent:
+        for ent in sentence.ents:
+            if ent.label_ == k:
+                ents_ans.append(ent)
+        if len(ents_ans) > 0:
+            break
+
+    if len(ents_ans) == 0:
+        return sentence
+    else:
+        s = ''
+        for e in ents_ans:
+            s += e.text + ' '
+        s = s.rstrip()
+        return s
+
 # ===========================
 # ===========================
 
@@ -536,6 +558,7 @@ sims = []
 # #######LOAD INPUT FOR TESTING #################
 q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
 loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
+ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
 
 # loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
 count = 0
@@ -664,6 +687,10 @@ for story_id in ordered_ids:
         best_context_text = ''
         for t in best_context:
             best_context_text += t[0].text + ' '
+
+        # Entity-based sentence trim
+        if q_type in ent_dict:
+            best_sentence = ent_trim_sentence(q_type, best_sentence, ent_dict)
 
         print('Question: ', question)
         print('Best context: ', best_context_text)
