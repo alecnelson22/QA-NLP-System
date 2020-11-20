@@ -280,7 +280,6 @@ def get_q_words_count(nlp_q, nlp_a):
     a_lens = [len(a) for a in tokenized_a]
     for i, w in enumerate(tokenized_q):
         if w.lower() in q_words:
-            q2 = w.lower() + ' ' + nlp_q[i + 1].text
             increase_sim_weight = False
             # I started going through the question types one-by one and recognizing some special cases
             # Here I outline those cases, while also clustering the question types into broader categories
@@ -325,10 +324,8 @@ def get_q_words_count(nlp_q, nlp_a):
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'why':
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
-                # print(w.lower() + ' ' + nlp_q[i + 1].text + ' (' + nlp_q[i + 1].pos_ + ')')
 
             else:
-                # q2 = w.lower() + ' ' + tokenized_q[i + 1]
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
 
             if q2 not in list(q_2word_counts.keys()):
@@ -354,6 +351,7 @@ def get_q_words_count(nlp_q, nlp_a):
                         q_2word_counts[q2]['ENT'][ent.label_] = 1
                     else:
                         q_2word_counts[q2]['ENT'][ent.label_] += 1
+
                 for token in a:
                     if (not token.is_stop and not token.pos_ == 'SPACE'):
                         tag = token.pos_
@@ -426,7 +424,7 @@ def get_fscore(response, key):
     return best_fm,b_prec, b_recall
 
 
-def ent_trim_sentence(q_type, sentences, ent_dict):
+def ent_trim(q_type, sentences, ent_dict):
     sorted_ent = [k for k, v in sorted(ent_dict[q_type]['ENT'].items(), key=lambda item: item[1], reverse=True)]
     ents_ans = []
     for i in range(len(sorted_ent)):
@@ -441,12 +439,12 @@ def ent_trim_sentence(q_type, sentences, ent_dict):
                     s += e.text + ' '
                 s = s.rstrip()
                 return s
-
-            # if len(ents_ans) == 0:
-            #     return sentence, try_again
-            # else:
-
     return sorted_sents[list(sorted_sents.keys())[0]]
+
+
+def why_bec_trim(sentence):
+    return 'because' + sentence.text.split('because', 1)[1]
+
 
 
 # ===========================
@@ -586,16 +584,6 @@ q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
 loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
 ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
 
-# q_to_add = ['how ADJ', 'how much', 'how many', 'how old', 'when was', 'what day']
-# ent_d = {}
-# for k in q_2word_counts:
-#     if k in q_to_add:
-#         ent_d[k] = q_2word_counts[k]
-# f = open('ent_prob_dict', 'wb')
-# pickle.dump(ent_d, f)
-# f.close()
-
-
 # loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
 count = 0
 
@@ -707,13 +695,13 @@ for story_id in ordered_ids:
 
         # Entity-based sentence trim
         if q_type in ent_dict:
-            best_sentence = ent_trim_sentence(q_type, sorted_sents, ent_dict)
-            # for s in sorted_sents:
-            #     best_sentence, try_again = ent_trim_sentence(q_type, sorted_sents[s], ent_dict)
-            #     if not try_again:
-            #         break
-            # if try_again:
-            #     best_sentence = sorted_sents[list(sorted_sents.keys())[0]]
+            best_sentence = ent_trim(q_type, sorted_sents, ent_dict)
+
+        # why/because-based sentence trim
+        if q_type.split()[0] == 'why' and 'because' in best_sentence.text:
+            best_sentence = why_bec_trim(best_sentence)
+
+
 
         print('Question: ', question)
         print('Best context: ', best_context_text)
