@@ -430,28 +430,28 @@ def get_fscore(response, key):
     return best_fm,b_prec, b_recall
 
 
-def ent_trim_sentence(q_type, sentence, ent_dict):
+def ent_trim_sentence(q_type, sentences, ent_dict):
     sorted_ent = [k for k, v in sorted(ent_dict[q_type]['ENT'].items(), key=lambda item: item[1], reverse=True)]
     ents_ans = []
-    try_again = True
+    for i in range(len(sorted_ent)):
+        k = sorted_ent[i]
+        for score in sentences:
+            for ent in sentences[score].ents:
+                if ent.label_ == k:
+                    ents_ans.append(ent)
+            if len(ents_ans) > 0:
+                s = ''
+                for e in ents_ans:
+                    s += e.text + ' '
+                s = s.rstrip()
+                return nlp(s)
 
-    k = sorted_ent[0]
-    # for k in sorted_ent:
-    for ent in sentence.ents:
-        if ent.label_ == k:
-            ents_ans.append(ent)
-    if len(ents_ans) > 0:
-        try_again = False
-        # break
+            # if len(ents_ans) == 0:
+            #     return sentence, try_again
+            # else:
 
-    if len(ents_ans) == 0:
-        return sentence, try_again
-    else:
-        s = ''
-        for e in ents_ans:
-            s += e.text + ' '
-        s = s.rstrip()
-        return nlp(s), try_again
+    return sorted_sents[list(sorted_sents.keys())[0]]
+
 
 # ===========================
 # ===========================
@@ -691,11 +691,11 @@ for story_id in ordered_ids:
                 used_type=q_type2
 
         # k = used_weights['k']
-        # k=6
-        # if 'k' in used_weights:
-        #     k=used_weights['k']
+        k=6
+        if 'k' in used_weights:
+            k=used_weights['k']
     
-        k = math.ceil(q_2word_counts[used_type]['Avg Ans Len'] / 2)
+        # k = math.ceil(q_2word_counts[used_type]['Avg Ans Len'] / 2)
         
         print('k is ', k, file=sys.stderr)
         best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k, q_type, used_weights, bump_word, q_words)
@@ -709,7 +709,7 @@ for story_id in ordered_ids:
                 sents.append(w[0].sent)
         # Find the sentence with the highest per-word weight
         best_weight = 0
-        sorted_sents = {}
+        sorted_sents = {}  # not sorted until they get passed to ent_sent_trim
         for i,s in enumerate(sents):
             st = [token for token in s]
             sentence_weight = get_sentence_weight(st, filtered_q, nlp(story), q_2word_counts, q_type, used_weights, bump_word, q_words)
@@ -720,8 +720,7 @@ for story_id in ordered_ids:
             elif sentence_weight > best_weight:
                 best_weight = sentence_weight
                 best_sentence = s
-
-        sorted_sents = {k: v for k, v in sorted(sorted_sents.items(), key=lambda item: item[1], reverse=True)}
+        sorted_sents = dict(sorted(sorted_sents.items(), reverse=True))
 
         best_context_text = ''
         for t in best_context:
@@ -733,8 +732,8 @@ for story_id in ordered_ids:
         # print('Best sentence: ', best_sentence,file=sys.stderr)
         # print('Actual: ', answer,file=sys.stderr )
         
-        k = math.ceil(q_2word_counts[used_type]['Avg Ans Len'] / 2)
-        best_sentence_tokens=[[token, i] for i, token in enumerate(best_sentence)]
+        # k = math.ceil(q_2word_counts[used_type]['Avg Ans Len'] / 2)
+        # best_sentence_tokens=[[token, i] for i, token in enumerate(best_sentence)]
 
         # print(filtered_s,file=sys.stderr)
         # print( best_sentence_tokens,file=sys.stderr)
@@ -746,12 +745,13 @@ for story_id in ordered_ids:
 
         # Entity-based sentence trim
         if q_type in ent_dict:
-            for s in sorted_sents:
-                best_sentence, try_again = ent_trim_sentence(q_type, sorted_sents[s], ent_dict)
-                if not try_again:
-                    break
-            if try_again:
-                best_sentence = sorted_sents[list(sorted_sents.keys())[0]]
+            best_sentence = ent_trim_sentence(q_type, sorted_sents, ent_dict)
+            # for s in sorted_sents:
+            #     best_sentence, try_again = ent_trim_sentence(q_type, sorted_sents[s], ent_dict)
+            #     if not try_again:
+            #         break
+            # if try_again:
+            #     best_sentence = sorted_sents[list(sorted_sents.keys())[0]]
 
         print('Question: ', question,file=sys.stderr)
         print('Best context: ', best_context_text,file=sys.stderr)
@@ -773,14 +773,14 @@ for story_id in ordered_ids:
         fscore, prec, recall= get_fscore(best_sentence.text,answer )
         print('fscore: ', fscore, file=sys.stderr)
         print('prec/recal: ', prec,recall,'\n', file=sys.stderr)
-        weights.append(weight)
-        scores.append(recall)
+        # weights.append(weight)
+        # scores.append(recall)
         # if(q_type not in type_to_score):
         #     type_to_score[q_type]=[]
         # type_to_score[q_type].append(recall)
         # if q_type not in type_to_info:
         #     type_to_info[q_type]=[]
-        # sent_doc=best_sentence.as_doc()
+        # # sent_doc=best_sentence.as_doc()
         # print('ents',[e.label_ for e in best_sentence.ents], file=sys.stderr)
         # type_to_info[q_type].append({"question":question,"answer-key":answer, "best_sentence":best_sentence.text, "fscore":fscore,"precision":prec,'recall':recall, "best_sent_ents": [e.label_ for e in best_sentence.ents]})
         # break
@@ -801,11 +801,11 @@ for story_id in ordered_ids:
 # ordered={k: v for k, v in sorted(type_to_score_ave.items(), key=lambda item: item[1])}
 # print(ordered, file=sys.stderr)
 
-# f = open('summary_noextra', 'wb')
+# f = open('summary_noextra_new', 'wb')
 # pickle.dump(type_to_info, f) 
 # f.close()
 
-# f = open('qtype_recall_noextra', 'wb')
+# f = open('qtype_recall_noextra_new', 'wb')
 # pickle.dump(type_to_score, f) 
 # f.close()
 # for output in outputs:
