@@ -580,8 +580,78 @@ best_params_per_story={}
 #     question_data, _ = load_QA('data/' + id + '.answers')
 #     stories[id] = story_data
 #     questions[id] = question_data
-
-to_use_qtype=["what NOUN"]
+# which PROPN
+# who did
+# when PRON
+# what were
+# why is
+# whose NOUN
+# where does
+# what do
+# what does
+# which NOUN
+# where VERB
+# what was
+# what kind
+# what ADJ
+# where ADP
+# how ADV
+# which NUM
+# how does
+# what did
+# why VERB
+# why AUX
+# how AUX
+# what are
+# how did
+# where was
+# where AUX
+# why does
+# why was
+# when was
+# who ADV
+# what PROPN
+# what ADP
+# what ADV
+# what time
+to_use_qtype=[
+'where is',
+'who is',
+'what AUX',
+'who VERB',
+'how ADJ',
+'how much',
+'what NOUN',
+'how many',
+'when did',
+'why did',
+'who was',
+'where did',
+'who AUX',
+'how VERB',
+'what happened',
+'how old',
+'when VERB',
+'what VERB',
+'when AUX',
+'how long',
+'what NUM',
+'what is',
+'what type',
+'who did',
+'which PROPN',
+'why PROPN',
+'what day',
+'what color',
+'which of',
+'when PROPN',
+'what animal',
+'who DET',
+'who CCONJ',
+'whose PROPN',
+'which VERB',
+'which AUX',
+]
 for qtype_i in to_use_qtype:
     print("length of set is ", len(qtype_to_id[qtype_i]))
     best_w_t=0
@@ -683,19 +753,19 @@ for qtype_i in to_use_qtype:
     best_params[qtype_i]["k"]=(best_w_k)
     best_params[qtype_i]["bump_weight"]=(best_w_b)
     try: 
-        f = open('tuned_weights_alec_whatNOUN', 'wb')
+        f = open('tuned_weights_the_rest', 'wb')
         pickle.dump(best_params, f) 
         f.close()
     except: 
         print("Something went wrong")
     print("DONE WITH Q")
-    print('for type',qtype_i)
-    # print(best_context, response)
-    # print("overall best fmeasure= ",best_fm_sum, 'num of qs', len(qtype_to_id[qtype_i]))
-    print("overall best recall= ", best_recall_sum, 'num of qs', len(qtype_to_id[qtype_i]))
-    if len(qtype_to_id[qtype_i])>0:
-        # print('ave', best_fm_sum/len(qtype_to_id[qtype_i]))
-        print('ave', best_recall_sum / len(qtype_to_id[qtype_i]))
+    # print('for type',qtype_i)
+    # # print(best_context, response)
+    # # print("overall best fmeasure= ",best_fm_sum, 'num of qs', len(qtype_to_id[qtype_i]))
+    # print("overall best recall= ", best_recall_sum, 'num of qs', len(qtype_to_id[qtype_i]))
+    # if len(qtype_to_id[qtype_i])>0:
+    #     # print('ave', best_fm_sum/len(qtype_to_id[qtype_i]))
+    #     print('ave', best_recall_sum / len(qtype_to_id[qtype_i]))
 
 print('done')
     

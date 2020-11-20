@@ -44,7 +44,7 @@ count=0
 count_bad=0
 good_counts={}
 bad_counts={}
-
+good_questions={}
 for typ in ordered:
     print('for qtype', typ, 'ave recall is ', ordered[typ])
     bad_counts[typ]=0
@@ -57,6 +57,9 @@ for typ in ordered:
             count_bad+=1
             bad_counts[typ]+=1
         else:
+            if typ not in good_questions:
+                good_questions[typ]=[]
+            good_questions[typ].append(summary[typ])
             good_counts[typ]+=1
         count+=1
 print('-------------')
@@ -70,15 +73,27 @@ print('-------------------------------------------------------------------------
 print('----------------------------------------------------------------------------------------------------------------')
 
 # asdf
-for typ in bad_questions:
-    if(good_counts[typ]/bad_counts[typ]>=1):
+answer_parses={}
+answer_keys={}
+tity_qs=[
+'how ADJ',
+'how much',
+'how many',
+'how old',
+'when was',
+]
+for typ in good_questions:
+    # if(good_counts[typ]/bad_counts[typ]>=1):
+    #     continue
+    if typ in tity_qs:
         continue
-    
-    print('-------------------FOR TYPE ',typ,'ratio',good_counts[typ]/bad_counts[typ],'bad questions are -----------------------------')
+    answer_parses[typ]=[]
+    answer_keys[typ]=[]
+    print('-------------------FOR TYPE ',typ,'ratio,good_counts[typ]/bad_counts[typ]','good questions are -----------------------------')
     print('attr dictionary ', attribute_dictionary[typ])
     print('---------------------------------------------------------------------------------------------------------------------------')
     
-    for q,quest in enumerate(bad_questions[typ]):
+    for q,quest in enumerate(good_questions[typ]):
         ents=summary[typ][q]['best_sent_ents']
         print('---------------------------------')
         print('question',summary[typ][q]['question'])
@@ -92,9 +107,12 @@ for typ in bad_questions:
             nlp_key=nlp(ans)
             print('Entities in key: ', [e.label_ for e in nlp_key.ents])
         # print('')
-        for ans in summary[typ][q]['answer-key']:
+        for j,ans in enumerate(summary[typ][q]['answer-key']):
             nlp_key=nlp(ans)
             print('word/POS/dep in key are ', [(token.text, token.pos_,token.dep_) for token in nlp_key])
+            answer_parses[typ].append([(token.text, token.pos_,token.dep_) for token in nlp_key])
+            answer_keys[typ].append(summary[typ][q]['answer-key'][j])
+
         print('') 
         nlp_q=nlp(summary[typ][q]['question'])   
         print('---question dependency info------ ')
@@ -105,3 +123,9 @@ for typ in bad_questions:
         print('---------------------------------')
     print('---------------------------------------------------------------------------------------------------------------------------')
 
+
+for typ in answer_parses:
+    print('-----------------for answer type ',typ,'key parses are----------------')
+    for q,p in enumerate(answer_parses[typ]):
+        print('key text:',answer_keys[typ][q])
+        print('parses:', answer_parses[typ][q])

@@ -1,6 +1,7 @@
 import numpy as np
 # import nltk
 import math
+# import matplotlib.pyplot as plt
 # from nltk.corpus import stopwords
 # from nltk.tokenize import word_tokenize
 # from nltk.corpus import wordnet
@@ -18,8 +19,12 @@ nlp2.add_pipe(PySBDFactory(nlp2), before="parser")
 # nlp = spacy.load("en_core_web_md")  # make sure to use larger model!
 # nlp = spacy.load("en_core_web_sm")  # make sure to use larger model!
 
-# input_file_name=sys.argv[1]
-input_file_name = 'test_input.txt'
+if len(sys.argv)>1:
+    input_file_name=sys.argv[1]
+else:
+    # input_file_name = './test_input.txt'
+    input_file_name = './test_input_all_ordered.txt'
+
 
 # Load story as single string, returns data in dict
 def load_story(fname):
@@ -57,7 +62,7 @@ def load_QA(fname):
                 elif 'Question:' in line:
                     q = l[1]
                 elif 'Answer' in line:
-                    a = l[1].split(' | ')
+                    a = l[1].strip().split(' | ')
                 # Assumes 'Difficulty' denotes end of qid
                 elif 'Difficulty' in line:
                     d =l[1]
@@ -156,10 +161,11 @@ def get_best_context_w_weight(story_data, question_data, orig_story, attribute_d
                 for w_type in weight_dict: 
                     if (w_type == 'text_weight'):
                         if q_word[0].has_vector and s_word[0].has_vector:
-                            if q_word[0].text == bump_word and q_word[0].similarity(s_word[0]) > .75:
-                                b_weight = weight_dict["bump_weight"]
-                            else:
-                                b_weight = 1
+                            if(q_word[0].similarity(s_word[0])>0):
+                                if q_word[0].text == bump_word and q_word[0].similarity(s_word[0]) > .75:
+                                    b_weight = weight_dict["bump_weight"]
+                                else:
+                                    b_weight = 1
 
                             # # This is here just to gain some insight into word pairs
                             # # and their similarity scores
@@ -171,8 +177,7 @@ def get_best_context_w_weight(story_data, question_data, orig_story, attribute_d
                             # if w_pair not in sims:
                             #     sims.append(w_pair)
                             #     print(w_pair, sim)
-
-                            curr_context_weight += q_word[0].similarity(s_word[0]) * weight_dict[w_type] * b_weight
+                                curr_context_weight += q_word[0].similarity(s_word[0]) * weight_dict[w_type] * b_weight
                     elif (w_type == 'pos_weight'):
                         curr_attr = attribute_dict[q_type]['POS']
                         if(s_word[0].pos_ in curr_attr):
@@ -218,11 +223,13 @@ def get_sentence_weight(sentence, question_data, orig_story, attribute_dict, q_t
             for w_type in weight_dict:
                 if(w_type == 'text_weight'):
                     if q_word[0].has_vector and s_word.has_vector:
-                        if q_word[0].text == bump_word and q_word[0].similarity(s_word) > .75:
-                            b_weight = weight_dict["bump_weight"]
-                        else:
-                            b_weight = 1
-                        sentence_weight += q_word[0].similarity(s_word) * weight_dict[w_type] * b_weight
+                        if(q_word[0].similarity(s_word)>0):
+
+                            if q_word[0].text == bump_word and q_word[0].similarity(s_word) > .75:
+                                b_weight = weight_dict["bump_weight"]
+                            else:
+                                b_weight = 1
+                            sentence_weight += q_word[0].similarity(s_word) * weight_dict[w_type] * b_weight
                 elif(w_type == 'pos_weight'):
                     curr_attr = attribute_dict[q_type]['POS']
                     if(s_word.pos_ in curr_attr):
@@ -429,12 +436,16 @@ def get_fscore(response, key):
 stories = {}
 questions = {}
 test_answer_key = {}
-# for fname in os.listdir(os.getcwd() + '/data'):
-#     id = fname.split('.')[0]
-#     story_data = load_story('data/' + id + '.story')
-#     question_data, _ = load_QA('data/' + id + '.answers')
-#     stories[id] = story_data
-#     questions[id] = question_data
+# ids=set()
+for fname in os.listdir(os.getcwd() + '/data'):
+    id = fname.split('.')[0]
+    story_data = load_story('data/' + id + '.story')
+    question_data, _ = load_QA('data/' + id + '.answers')
+    stories[id] = story_data
+    questions[id] = question_data
+    test_answer_key[id] = question_data
+
+#     ids.add(id)
 
 # Test set 1
 for fname in os.listdir(os.getcwd() + '/testset1'):
@@ -443,16 +454,26 @@ for fname in os.listdir(os.getcwd() + '/testset1'):
     question_data, _ = load_QA('testset1/' + id + '.answers')
     stories[id] = story_data
     test_answer_key[id] = question_data
+    # ids.add(id)
 
-# for fname in os.listdir(os.getcwd() + '/extra-data'):
-#     if '.answers' in fname:
-#         id = fname.split('.answers')[0]
-#         question_data, _ = load_QA('extra-data/' + id + '.answers')
-#         questions[id] = question_data
-#     else:
-#         id = fname.split('.story')[0]
-#         story_data = load_story('extra-data/' + id + '.story')
-#         stories[id] = story_data
+for fname in os.listdir(os.getcwd() + '/extra-data'):
+    if '.answers' in fname:
+        id = fname.split('.answers')[0]
+        question_data, _ = load_QA('extra-data/' + id + '.answers')
+        questions[id] = question_data
+        test_answer_key[id] = question_data
+
+    else:
+        id = fname.split('.story')[0]
+        story_data = load_story('extra-data/' + id + '.story')
+        stories[id] = story_data
+        # ids.add(id)
+
+# sids=sorted(ids)
+# for id in ids:
+#     print(id)
+
+# asdf 
 
 #######yper parameters#######
 # k = 5
@@ -591,6 +612,9 @@ for l in fn:
 fn.close()
 outputs=[]
 type_to_score={}
+type_to_info={}
+weights=[]
+scores=[]
 ######run#######
 for story_id in ordered_ids:
     story_qa = test_questions[story_id]
@@ -631,15 +655,23 @@ for story_id in ordered_ids:
 
         used_weights = default_weights
         tmp = [token for token in nlp(q_type)]
+        used_type=q_type
         if q_type != 'Generic':
             q_type2 = tmp[0].text + ' ' + tmp[1].pos_
             if q_type in loaded_weights.keys():
                 used_weights = loaded_weights[q_type]
             elif q_type2 in loaded_weights.keys():
                 used_weights = loaded_weights[q_type2]
+                used_type=q_type2
 
         # k = used_weights['k']
-        k = 4
+        # k=6
+        # if 'k' in used_weights:
+        #     k=used_weights['k']
+    
+        k = math.ceil(q_2word_counts[used_type]['Avg Ans Len'] / 2)
+        
+        print('k is ', k, file=sys.stderr)
         best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k, q_type, used_weights, bump_word, q_words)
 
         # Find all sentences that are a part of the best context
@@ -665,46 +697,74 @@ for story_id in ordered_ids:
         for t in best_context:
             best_context_text += t[0].text + ' '
 
-        print('Question: ', question)
-        print('Best context: ', best_context_text)
-        print('Best sentence: ', best_sentence)
-        print('Actual: ', answer, '\n')
+        print('Question: ', question,file=sys.stderr)
+        print('Best context: ', best_context_text,file=sys.stderr)
+        print('Best sentence: ', best_sentence,file=sys.stderr)
+        print('Actual: ', answer,file=sys.stderr )
+        
+        k = math.ceil(q_2word_counts[used_type]['Avg Ans Len'] / 2)
+        best_sentence_tokens=[[token, i] for i, token in enumerate(best_sentence)]
 
+        # print(filtered_s,file=sys.stderr)
+        # print( best_sentence_tokens,file=sys.stderr)
+        # best_response_res,_= get_best_context_w_weight(best_sentence_tokens, filtered_q, best_sentence, q_2word_counts, k, q_type, used_weights, bump_word, q_words)
+        # best_response=''
+        # for t in best_response_res:
+        #     best_response += t[0].text + ' '
+        # print('best response', best_response,file=sys.stderr)
 #         # print(question,file=sys.stderr)
 #         # print(story_qa[question_id]['Answer'],file=sys.stderr)
 #         # print(best_context,file=sys.stderr)
 #         # print('\n',file=sys.stderr)
 #
-#         print('QuestionID: '+question_id)
-#         print('Answer: ' + best_context.text + "\n")
+        print('QuestionID: '+question_id)
+        print('Answer: ' + best_sentence.text + "\n")
 #         print('QuestionID: ' ,question, file=sys.stderr)
 #         print('Answer: ', answer, file=sys.stderr)
-#         fscore, prec, recall= get_fscore(best_context.text,answer )
-#         print('fscore: ', fscore, file=sys.stderr)
-#         print('prec/recal: ', prec,recall, file=sys.stderr)
-#         if(q_type2 not in type_to_score):
-#             type_to_score[q_type2]=[]
-#         type_to_score[q_type2].append(recall)
+        fscore, prec, recall= get_fscore(best_sentence.text,answer )
+        print('fscore: ', fscore, file=sys.stderr)
+        print('prec/recal: ', prec,recall,'\n', file=sys.stderr)
+        weights.append(weight)
+        scores.append(recall)
+        # if(q_type not in type_to_score):
+        #     type_to_score[q_type]=[]
+        # type_to_score[q_type].append(recall)
+        # if q_type not in type_to_info:
+        #     type_to_info[q_type]=[]
+        # sent_doc=best_sentence.as_doc()
+        # print('ents',[e.label_ for e in best_sentence.ents], file=sys.stderr)
+        # type_to_info[q_type].append({"question":question,"answer-key":answer, "best_sentence":best_sentence.text, "fscore":fscore,"precision":prec,'recall':recall, "best_sent_ents": [e.label_ for e in best_sentence.ents]})
+        # break
+    # break
 #         # ans = ''
 #         # for w in best_context:
 #         #     ans += w[0].text + ' '
 #         print('Answer: ' + best_context.text, file=sys.stderr)
 #         # print('Entities in answer: ', [e.label_ for e in ents], '\n', file=sys.stderr)
 # #         outputs.append([question_id, best_context])
+# : 0.35000777000777, 'what VERB': 0.3704695767195767, 'who VERB': 0.394140989729225, 'who AUX': 0.398046398046398, 'what NOUN': 0.40522875816993464, 'what ADJ': 0.42045454545454547, 'when AUX': 0.45061949544708163, 'why VERB': 0.4865800865802163742690059}
+# type_to_score_ave={}
+# for typ in type_to_score:
+#     mean=statistics.mean(type_to_score[typ])
+#     print('for qtype', typ, "ave score is ",mean, file=sys.stderr)
+#     type_to_score_ave[typ]=mean
 
-type_to_score_ave={}
-for typ in type_to_score:
-    mean=statistics.mean(type_to_score[typ])
-    print('for qtype', typ, "ave score is ",mean, file=sys.stderr)
-    type_to_score_ave[typ]=mean
+# ordered={k: v for k, v in sorted(type_to_score_ave.items(), key=lambda item: item[1])}
+# print(ordered, file=sys.stderr)
 
-ordered={k: v for k, v in sorted(type_to_score_ave.items(), key=lambda item: item[1])}
-print(ordered, file=sys.stderr)
+# f = open('summary_noextra', 'wb')
+# pickle.dump(type_to_info, f) 
+# f.close()
+
+# f = open('qtype_recall_noextra', 'wb')
+# pickle.dump(type_to_score, f) 
+# f.close()
 # for output in outputs:
 #     print('QuestionID: '+output[0])
 #     print('Answer: ' + output[1] + "\n")
 
-
+    # plt.scatter(weights, scores)
+    # plt.show()
 #TODO: write function for getting entire context not filtered
 #function for output
 #cleanup k issue
