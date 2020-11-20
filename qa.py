@@ -328,6 +328,21 @@ def get_q_words_count(nlp_q, nlp_a):
             else:
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
 
+            # Further split our biggest category
+            # ROOT 'do' implies answer is VERB-based
+            # Otherwise, more often than not, answer is NOUN-based
+            if q2 == 'what did':
+                for t in nlp_q:
+                    if t.dep_ == 'ROOT':
+                        rw = t.text
+                        if rw == 'do':
+                            q2 += ' ' + rw
+                        elif rw == 'eat':
+                            q2 += ' ' + rw
+                        else:
+                            increase_sim_weight = True
+                        break
+
             if q2 not in list(q_2word_counts.keys()):
                 # q_2word_counts[q2] = 1
                 q_2word_counts[q2] = {}
@@ -337,7 +352,7 @@ def get_q_words_count(nlp_q, nlp_a):
                 q_2word_counts[q2]['POS'] = {}
                 q_2word_counts[q2]['Avg Ans Len'] = a_lens  # Count lengths for now, take average at the end
                 if increase_sim_weight:
-                    q_2word_counts[q2]['Inc Sim Weight'] = True  # increase the similarity weight of the 2nd q word
+                    q_2word_counts[q2]['Inc Sim Weight'] = True  # increase the similarity weight of the bump word
                 else:
                     q_2word_counts[q2]['Inc Sim Weight'] = False
             else:
@@ -345,7 +360,19 @@ def get_q_words_count(nlp_q, nlp_a):
                 q_2word_counts[q2]['Count'] += 1
                 q_2word_counts[q2]['Avg Ans Len'].extend(a_lens)
 
+
             for a in nlp_a:
+
+                # THIS CAN BE USEFUL FOR DEBUGGING
+                # if q2 == 'when did':
+                #     for t in nlp_q:
+                #         if t.dep_ == 'ROOT':
+                #             rw = t.text
+                #             break
+                #     print(nlp_q.text)
+                #     print(a.text)
+                #     print('')
+
                 for ent in a.ents:
                     if ent.label_ not in q_2word_counts[q2]['ENT']:
                         q_2word_counts[q2]['ENT'][ent.label_] = 1
@@ -373,12 +400,25 @@ def get_q_type(question, q_words):
     for i, token in enumerate(tokenized_q):
         if token.lower() in q_words:
             q_type = token.lower() + ' ' + question[i + 1].text
+
+            # SPECIAL CASES
+            if q_type == 'what did':
+                for t in question:
+                    if t.dep_ == 'ROOT':
+                        rw = t.text
+                        if rw == 'do':
+                            q_type += ' ' + rw
+                        else:  # not every category needs a bump word, but this is where they get assigned
+                            bump_word = rw
+                        break
+
             if q_type not in list(q_2word_counts.keys()):
                 q_type = token.lower() + ' ' + question[i + 1].pos_
                 if q_type not in list(q_2word_counts.keys()):
                     q_type = 'Generic'
             if q_2word_counts[q_type]['Inc Sim Weight']:
-                bump_word = question[i + 1].text
+                if q_type != 'what did':
+                    bump_word = question[i + 1].text
             return q_type, bump_word
     return "Generic", bump_word
 
@@ -450,6 +490,7 @@ def why_bec_trim(sentence):
 # ===========================
 # ===========================
 
+cats = {}
 
 #######Load Data####### these are test sets
 stories = {}
@@ -499,8 +540,8 @@ q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 sims = []
 
 ####################################
-#
-# # ######Build Dictionary for Question Types#######
+
+# ######Build Dictionary for Question Types#######
 # q_2word_counts = {}  # attribute dictionary
 # id_to_type = {}  # link q to type
 # for story_id in list(questions.keys()):
@@ -583,8 +624,8 @@ sims = []
 q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
 loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
 ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
+big_q_counts=np.load('./biggest_qtype_counts', allow_pickle=True)
 
-# loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
 count = 0
 
 test_stories={}
@@ -620,7 +661,6 @@ type_to_score={}
 for story_id in ordered_ids:
     story_qa = test_questions[story_id]
     story = test_stories[story_id]['TEXT']
-
     tagged_text = [[token, i] for i, token in enumerate(nlp(story))]
     filtered_s = filter_by_POS(tagged_text, filter_pos_tags)
     filtered_s = filter_by_stopwords(filtered_s, stop_words)
@@ -701,12 +741,22 @@ for story_id in ordered_ids:
         if q_type.split()[0] == 'why' and 'because' in best_sentence.text:
             best_sentence = why_bec_trim(best_sentence)
 
+        # IN PROGRESS - prep phrase-based trim, will move this to a function
+        if q_type == 'when did':
+            pps = []
+            for token in best_sentence:
+                # Try this with other parts of speech for different subtrees.
+                if token.pos_ == 'ADP':
+                    # pp = ' '.join([tok.orth_ for tok in token.subtree])
+                    pp = [tok for tok in token.subtree]
+                    pps.append(pp)
 
-
-        print('Question: ', question)
-        print('Best context: ', best_context_text)
-        print('Best sentence: ', best_sentence)
-        print('Actual: ', answer, '\n')
+            print('Question: ', question)
+            print('Best context: ', best_context_text)
+            print('Best sentence: ', best_sentence)
+            print('Prep Phrases: ', pps)
+            print('Actual: ', answer, '\n')
+            print('')
 
 #         # print(question,file=sys.stderr)
 #         # print(story_qa[question_id]['Answer'],file=sys.stderr)
