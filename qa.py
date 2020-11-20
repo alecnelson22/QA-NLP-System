@@ -435,7 +435,7 @@ def ent_trim_sentence(q_type, sentence, ent_dict):
     ents_ans = []
     try_again = True
 
-    k = sorted_sents[0]
+    k = sorted_ent[0]
     # for k in sorted_ent:
     for ent in sentence.ents:
         if ent.label_ == k:
@@ -747,7 +747,7 @@ for story_id in ordered_ids:
         # Entity-based sentence trim
         if q_type in ent_dict:
             for s in sorted_sents:
-                best_sentence, try_again = ent_trim_sentence(q_type, best_sentence, ent_dict)
+                best_sentence, try_again = ent_trim_sentence(q_type, sorted_sents[s], ent_dict)
                 if not try_again:
                     break
             if try_again:
