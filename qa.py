@@ -486,6 +486,54 @@ def why_bec_trim(sentence):
     return 'because' + sentence.text.split('because', 1)[1]
 
 
+def get_biggest_pps(sentence):
+    # Find prepositional phrases
+    pps = []
+    pps_text = []
+    for token in best_sentence:
+        if token.pos_ == 'ADP':
+            pp = [tok for tok in token.subtree]
+            pps.append(pp)
+            pp_text = ' '.join([tok.orth_ for tok in token.subtree])
+            pps_text.append(pp_text)
+    # Check if pp is a subset of a larger pp
+    i_del = []
+    for i in range(len(pps_text)):
+        for j in range(len(pps_text)):
+            if i == j:
+                continue
+            else:
+                if pps_text[i] in pps_text[j]:  # this pp in part of a larger one
+                    i_del.append(i)
+    # filter pps to only contain parent pps
+    filtered_pps = []
+    for i in range(len(pps)):
+        if i not in i_del:
+            filtered_pps.append(pps[i])
+    return filtered_pps
+
+
+def when_did_trim(sentence, pps):
+    # First, try to return pps with DATEs in them
+    best_pps = []
+    for pp in pps:
+        for token in pp:
+            if token.ent_type_ == 'DATE':
+                pp = ' '.join([t.text for t in pp])
+                best_pps.append(pp)
+                break
+    if len(best_pps) > 0:
+        return ' '.join(best_pps)
+
+    # Next, try to return DATEs
+    best_ents = []
+    for ent in sentence.ents:
+        if ent.label_ == 'DATE':
+            best_ents.append(ent.text)
+    if len(best_ents) > 0:
+        return best_ents
+
+    return sentence.text
 
 # ===========================
 # ===========================
@@ -733,30 +781,26 @@ for story_id in ordered_ids:
         for t in best_context:
             best_context_text += t[0].text + ' '
 
+        # CASE-BY-CASE SENTENCE TRIMMING
         # Entity-based sentence trim
         if q_type in ent_dict:
             best_sentence = ent_trim(q_type, sorted_sents, ent_dict)
 
         # why/because-based sentence trim
-        if q_type.split()[0] == 'why' and 'because' in best_sentence.text:
+        elif q_type.split()[0] == 'why' and 'because' in best_sentence.text:
             best_sentence = why_bec_trim(best_sentence)
 
-        # IN PROGRESS - prep phrase-based trim, will move this to a function
-        if q_type == 'when did':
-            pps = []
-            for token in best_sentence:
-                # Try this with other parts of speech for different subtrees.
-                if token.pos_ == 'ADP':
-                    # pp = ' '.join([tok.orth_ for tok in token.subtree])
-                    pp = [tok for tok in token.subtree]
-                    pps.append(pp)
+        #prep phrase-based trim
+        elif q_type == 'when did':
+            pps = get_biggest_pps(best_sentence)
+            best_sentence = when_did_trim(best_sentence, pps)
 
-            print('Question: ', question)
-            print('Best context: ', best_context_text)
-            print('Best sentence: ', best_sentence)
-            print('Prep Phrases: ', pps)
-            print('Actual: ', answer, '\n')
-            print('')
+        print('Question: ', question)
+        print('Best context: ', best_context_text)
+        print('Best sentence: ', best_sentence)
+        print('Prep Phrases: ', pps)
+        print('Actual: ', answer, '\n')
+        print('')
 
 #         # print(question,file=sys.stderr)
 #         # print(story_qa[question_id]['Answer'],file=sys.stderr)
