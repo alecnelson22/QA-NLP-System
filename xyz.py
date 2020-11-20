@@ -13,6 +13,8 @@ import pickle
 who_adv=np.load('./tuned_weights_torin_whoadv', allow_pickle=True)
 whereverb=np.load('./tuned_weights_torin_whereverb', allow_pickle=True)
 whatnoun=np.load('./tuned_weights_alec_whatNOUN', allow_pickle=True)
+the_rest=np.load('./tuned_weights_the_rest', allow_pickle=True)
+
 
 
 
@@ -71,7 +73,26 @@ for typ in who_adv:
             my_final_dict[typ]['bump_weight']=who_adv[typ]["bump_weight"]
             my_final_dict[typ]['k']=who_adv[typ]["k"]
             my_final_dict[typ]['text_weight']=who_adv[typ]["text_weight"]
-# print(my_dict)
+
+for typ in the_rest:
+    if len(the_rest[typ])>0:
+        if the_rest[typ]["text_weight"]!=0:
+            if typ not in added:
+                my_final_dict[typ]={}
+
+                print('for type ', typ)
+                print('text_weight', the_rest[typ]["text_weight"])
+                print('pos_weight', the_rest[typ]["pos_weight"])
+                print('ent_weight', the_rest[typ]["ent_weight"])
+                print('k', the_rest[typ]["k"])
+                print('bump_weight', the_rest[typ]["bump_weight"])
+                added.append(typ)
+                my_final_dict[typ]['pos_weight']=the_rest[typ]["pos_weight"]
+                my_final_dict[typ]['ent_weight']=the_rest[typ]["ent_weight"]
+                my_final_dict[typ]['bump_weight']=the_rest[typ]["bump_weight"]
+                my_final_dict[typ]['k']=the_rest[typ]["k"]
+                my_final_dict[typ]['text_weight']=the_rest[typ]["text_weight"]
+    # print(my_dict)
 # # to_add=[]
 # print("l")
 # for typ in my_dictl:
@@ -232,12 +253,12 @@ for typ in my_final_dict:
     #     # if(typ not in to_use_qtype):
     #         print("not added: ",typ)
 
-# try: 
-#     f = open('tuned_weights_TEST_ALL', 'wb') 
-#     pickle.dump(my_final_dict, f) 
-#     f.close()
-# except: 
-#     print("Something went wrong")
+try: 
+    f = open('tuned_weights_TEST_ALL', 'wb') 
+    pickle.dump(my_final_dict, f) 
+    f.close()
+except: 
+    print("Something went wrong")
 
 
 print(my_final_dict)

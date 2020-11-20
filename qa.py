@@ -329,10 +329,8 @@ def get_q_words_count(nlp_q, nlp_a):
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'why':
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
-                # print(w.lower() + ' ' + nlp_q[i + 1].text + ' (' + nlp_q[i + 1].pos_ + ')')
 
             else:
-                # q2 = w.lower() + ' ' + tokenized_q[i + 1]
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
 
             if q2 not in list(q_2word_counts.keys()):
@@ -358,6 +356,7 @@ def get_q_words_count(nlp_q, nlp_a):
                         q_2word_counts[q2]['ENT'][ent.label_] = 1
                     else:
                         q_2word_counts[q2]['ENT'][ent.label_] += 1
+
                 for token in a:
                     if (not token.is_stop and not token.pos_ == 'SPACE'):
                         tag = token.pos_
@@ -430,7 +429,7 @@ def get_fscore(response, key):
     return best_fm,b_prec, b_recall
 
 
-def ent_trim_sentence(q_type, sentences, ent_dict):
+def ent_trim(q_type, sentences, ent_dict):
     sorted_ent = [k for k, v in sorted(ent_dict[q_type]['ENT'].items(), key=lambda item: item[1], reverse=True)]
     ents_ans = []
     for i in range(len(sorted_ent)):
@@ -445,12 +444,13 @@ def ent_trim_sentence(q_type, sentences, ent_dict):
                     s += e.text + ' '
                 s = s.rstrip()
                 return nlp(s)
-
-            # if len(ents_ans) == 0:
-            #     return sentence, try_again
-            # else:
-
+                # return s
     return sorted_sents[list(sorted_sents.keys())[0]]
+
+
+def why_bec_trim(sentence):
+    return nlp('because' + sentence.text.split('because', 1)[1])
+
 
 
 # ===========================
@@ -478,6 +478,7 @@ for fname in os.listdir(os.getcwd() + '/testset1'):
     story_data = load_story('testset1/' + id + '.story')
     question_data, _ = load_QA('testset1/' + id + '.answers')
     stories[id] = story_data
+    questions[id] = question_data
     test_answer_key[id] = question_data
     # ids.add(id)
 
@@ -486,8 +487,6 @@ for fname in os.listdir(os.getcwd() + '/extra-data'):
         id = fname.split('.answers')[0]
         question_data, _ = load_QA('extra-data/' + id + '.answers')
         questions[id] = question_data
-        test_answer_key[id] = question_data
-
     else:
         id = fname.split('.story')[0]
         story_data = load_story('extra-data/' + id + '.story')
@@ -519,7 +518,7 @@ sims = []
 
 ####################################
 #
-# ######Build Dictionary for Question Types#######
+# # ######Build Dictionary for Question Types#######
 # q_2word_counts = {}  # attribute dictionary
 # id_to_type = {}  # link q to type
 # for story_id in list(questions.keys()):
@@ -532,7 +531,7 @@ sims = []
 #         q_type = get_q_words_count(nlp(question), nlp_a)
 #         id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
 # # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
-
+#
 # new_q2 = {}
 # for k1 in q_2word_counts.keys():
 #     # if q_2word_counts[k1] < 10:
@@ -567,7 +566,7 @@ sims = []
 # # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
 # # np.save('sorted_qtypes', q_2word_counts)
 # get_avg_ans_len()
-
+#
 # # Normalize q_2word_counts values
 # norm_keys = ['ENT', 'POS']  # values to normalize
 # for q2 in q_2word_counts.keys():
@@ -577,18 +576,9 @@ sims = []
 #             count += q_2word_counts[q2][k][item]
 #         for item in q_2word_counts[q2][k].keys():
 #             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
-
-
-# #######LOAD INPUT FOR TESTING #################
-q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
-loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
-ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
-
-# loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
-count = 0
-
-# Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
-# This is in case we come across a question we've never seen
+#
+# # Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
+# # This is in case we come across a question we've never seen
 # for k in q_2word_counts.keys():
 #     count += q_2word_counts[k]['Count']
 # nkeys = len(list(q_2word_counts.keys()))
@@ -606,8 +596,14 @@ count = 0
 # f = open('attribute_dictionary_testing', 'wb')
 # pickle.dump(q_2word_counts, f)
 # f.close()
-# asdf
 
+# #######LOAD INPUT FOR TESTING #################
+q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
+loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
+ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
+
+# loaded_weights=np.load('./tuned_weights_all', allow_pickle=True)
+count = 0
 
 test_stories={}
 test_questions={}
@@ -745,13 +741,13 @@ for story_id in ordered_ids:
 
         # Entity-based sentence trim
         if q_type in ent_dict:
-            best_sentence = ent_trim_sentence(q_type, sorted_sents, ent_dict)
-            # for s in sorted_sents:
-            #     best_sentence, try_again = ent_trim_sentence(q_type, sorted_sents[s], ent_dict)
-            #     if not try_again:
-            #         break
-            # if try_again:
-            #     best_sentence = sorted_sents[list(sorted_sents.keys())[0]]
+            best_sentence = ent_trim(q_type, sorted_sents, ent_dict)
+
+        # why/because-based sentence trim
+        if q_type.split()[0] == 'why' and 'because' in best_sentence.text:
+            best_sentence = why_bec_trim(best_sentence)
+
+
 
         print('Question: ', question,file=sys.stderr)
         print('Best context: ', best_context_text,file=sys.stderr)
