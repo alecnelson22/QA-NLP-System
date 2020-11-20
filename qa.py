@@ -425,28 +425,28 @@ def get_fscore(response, key):
     return best_fm,b_prec, b_recall
 
 
-def ent_trim_sentence(q_type, sentence, ent_dict):
+def ent_trim_sentence(q_type, sentences, ent_dict):
     sorted_ent = [k for k, v in sorted(ent_dict[q_type]['ENT'].items(), key=lambda item: item[1], reverse=True)]
     ents_ans = []
-    try_again = True
+    for i in range(len(sorted_ent)):
+        k = sorted_ent[i]
+        for score in sentences:
+            for ent in sentences[score].ents:
+                if ent.label_ == k:
+                    ents_ans.append(ent)
+            if len(ents_ans) > 0:
+                s = ''
+                for e in ents_ans:
+                    s += e.text + ' '
+                s = s.rstrip()
+                return s
 
-    k = sorted_ent[0]
-    # for k in sorted_ent:
-    for ent in sentence.ents:
-        if ent.label_ == k:
-            ents_ans.append(ent)
-    if len(ents_ans) > 0:
-        try_again = False
-        # break
+            # if len(ents_ans) == 0:
+            #     return sentence, try_again
+            # else:
 
-    if len(ents_ans) == 0:
-        return sentence, try_again
-    else:
-        s = ''
-        for e in ents_ans:
-            s += e.text + ' '
-        s = s.rstrip()
-        return s, try_again
+    return sorted_sents[list(sorted_sents.keys())[0]]
+
 
 # ===========================
 # ===========================
@@ -679,7 +679,7 @@ for story_id in ordered_ids:
                 sents.append(w[0].sent)
         # Find the sentence with the highest per-word weight
         best_weight = 0
-        sorted_sents = {}
+        sorted_sents = {}  # not sorted until they get passed to ent_sent_trim
         for i,s in enumerate(sents):
             st = [token for token in s]
             sentence_weight = get_sentence_weight(st, filtered_q, nlp(story), q_2word_counts, q_type, used_weights, bump_word, q_words)
@@ -690,8 +690,7 @@ for story_id in ordered_ids:
             elif sentence_weight > best_weight:
                 best_weight = sentence_weight
                 best_sentence = s
-
-        sorted_sents = {k: v for k, v in sorted(sorted_sents.items(), key=lambda item: item[1], reverse=True)}
+        sorted_sents = dict(sorted(sorted_sents.items(), reverse=True))
 
         best_context_text = ''
         for t in best_context:
@@ -699,12 +698,13 @@ for story_id in ordered_ids:
 
         # Entity-based sentence trim
         if q_type in ent_dict:
-            for s in sorted_sents:
-                best_sentence, try_again = ent_trim_sentence(q_type, sorted_sents[s], ent_dict)
-                if not try_again:
-                    break
-            if try_again:
-                best_sentence = sorted_sents[list(sorted_sents.keys())[0]]
+            best_sentence = ent_trim_sentence(q_type, sorted_sents, ent_dict)
+            # for s in sorted_sents:
+            #     best_sentence, try_again = ent_trim_sentence(q_type, sorted_sents[s], ent_dict)
+            #     if not try_again:
+            #         break
+            # if try_again:
+            #     best_sentence = sorted_sents[list(sorted_sents.keys())[0]]
 
         print('Question: ', question)
         print('Best context: ', best_context_text)
