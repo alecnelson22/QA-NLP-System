@@ -375,14 +375,14 @@ def get_q_words_count(nlp_q, nlp_a):
             for a in nlp_a:
 
                 # THIS CAN BE USEFUL FOR DEBUGGING
-                # if q2 == 'when did':
-                #     for t in nlp_q:
-                #         if t.dep_ == 'ROOT':
-                #             rw = t.text
-                #             break
-                #     print(nlp_q.text)
-                #     print(a.text)
-                #     print('')
+                if q2 == 'where did':
+                    for t in nlp_q:
+                        if t.dep_ == 'ROOT':
+                            rw = t.text
+                            break
+                    print(nlp_q.text)
+                    print(a.text)
+                    print('')
 
                 for ent in a.ents:
                     if ent.label_ not in q_2word_counts[q2]['ENT']:
@@ -551,6 +551,38 @@ def when_did_trim(sentence, pps):
 
     return sentence.text
 
+
+# checks if there is a single noun chunk followed by a verb in a sentence, returns them
+def get_ncv(sentence):
+    chunks = [token for token in sentence.noun_chunks]
+    ncv = []
+    for c in chunks:
+        f = sentence[-1]
+        if c.end < sentence[-1].i:
+            v = sentence[c.end]
+            if sentence[c.end].pos_ == 'VERB':
+                ncv.append([c, v])
+    if len(ncv) > 0:
+        return ncv
+    return None
+
+
+def ncv_story_search(story, ncv):
+    sents = []
+    for pair in ncv:
+        nc = pair[0]
+        v = pair[1]
+        for chunk in story.noun_chunks:
+            if nc.text == chunk.text:
+                # check verb similarty
+                w = story[chunk.end]
+                sim = v.similarity(story[chunk.end])
+                if sim > .9:
+                    sents.append(w.sent)
+    if len(sents) > 0:
+        return sents
+    return None
+
 # ===========================
 # ===========================
 
@@ -580,6 +612,7 @@ for fname in os.listdir(os.getcwd() + '/testset1'):
     questions[id] = question_data
     test_answer_key[id] = question_data
     # ids.add(id)
+    # test_answer_key[id] = question_data
 
 for fname in os.listdir(os.getcwd() + '/extra-data'):
     if '.answers' in fname:
@@ -782,26 +815,38 @@ for story_id in ordered_ids:
                 used_weights = loaded_weights[q_type]
             elif q_type2 in loaded_weights.keys():
                 used_weights = loaded_weights[q_type2]
-                used_type=q_type2
-        # if q_type=="who is individual" or q_type=='who is identity':
-        #     used_weights=loaded_weights['who is']
-        # k = used_weights['k']
-        k=6
-        if 'k' in used_weights:
-            k=used_weights['k']
-    
-        # k = math.ceil(q_2word_counts[used_type]['Avg Ans Len'] / 2)
-        
-        print('k is ', k, file=sys.stderr)
-        best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k, q_type, used_weights, bump_word, q_words)
 
-        # Find all sentences that are a part of the best context
-        sents_text = []
-        sents = []
-        for w in best_context:
-            if w[0].sent.text not in sents_text:
-                sents_text.append(w[0].sent.text)
-                sents.append(w[0].sent)
+        # Try finding signature (1 noun chunk followed by 1 verb) in question)
+        # If it exists, try to find a highly similar match in story, before calling gbc
+
+        # if q_type == 'where did':
+
+        ncv = get_ncv(nlp(question.strip()))
+        if ncv is not None:
+            sents = ncv_story_search(nlp(story), ncv)
+            if sents is None:
+                # k = used_weights['k']
+                k = 4
+                best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k, q_type, used_weights, bump_word, q_words)
+                # Find all sentences that are a part of the best context
+                sents_text = []
+                sents = []
+                for w in best_context:
+                    if w[0].sent.text not in sents_text:
+                        sents_text.append(w[0].sent.text)
+                        sents.append(w[0].sent)
+        else:
+            k = 4
+            best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k,
+                                                             q_type, used_weights, bump_word, q_words)
+            # Find all sentences that are a part of the best context
+            sents_text = []
+            sents = []
+            for w in best_context:
+                if w[0].sent.text not in sents_text:
+                    sents_text.append(w[0].sent.text)
+                    sents.append(w[0].sent)
+
         # Find the sentence with the highest per-word weight
         best_weight = 0
         sorted_sents = {}  # not sorted until they get passed to ent_sent_trim
