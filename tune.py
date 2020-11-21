@@ -1,24 +1,29 @@
 import numpy as np
-import nltk
+# import nltk
 import math
+# import matplotlib.pyplot as plt
 # from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
+# from nltk.tokenize import word_tokenize
 # from nltk.corpus import wordnet
 import pickle
 import spacy
 import os
 import sys
 from pysbd.utils import PySBDFactory
-
+import statistics
 nlp = spacy.load("en_core_web_lg")  # make sure to use larger model!
+
 nlp2 = spacy.load("en_core_web_lg")
 nlp2.add_pipe(PySBDFactory(nlp2), before="parser")
 
 # nlp = spacy.load("en_core_web_md")  # make sure to use larger model!
 # nlp = spacy.load("en_core_web_sm")  # make sure to use larger model!
 
-# input_file_name=sys.argv[1]
-input_file_name = 'test_input.txt'
+if len(sys.argv)>1:
+    input_file_name=sys.argv[1]
+else:
+    # input_file_name = './test_input.txt'
+    input_file_name = './test_input_all_ordered.txt'
 
 
 # Load story as single string, returns data in dict
@@ -46,7 +51,7 @@ def load_story(fname):
 # Loads questions and answers from .answers files into dict
 def load_QA(fname):
     qa = {}
-    qa_list = []
+    qa_list=[]
     with open(fname, 'r') as fp:
         for line in fp:
             l = line.strip('\n').split(':')
@@ -57,10 +62,10 @@ def load_QA(fname):
                 elif 'Question:' in line:
                     q = l[1]
                 elif 'Answer' in line:
-                    a = l[1].split(' | ')
+                    a = l[1].strip().split(' | ')
                 # Assumes 'Difficulty' denotes end of qid
                 elif 'Difficulty' in line:
-                    d = l[1]
+                    d =l[1]
                     qa[q_id] = {'Question': q, 'Answer': a, 'Difficulty': d}
     return qa, qa_list
 
@@ -71,16 +76,16 @@ def get_context_words(text, k, t_idx, split=False):
         text = text.split()
     if k == 0:
         l_words = text[0:t_idx]
-        r_words = text[t_idx + 1:]
+        r_words = text[t_idx+1:]
         words = l_words + r_words
     else:
-        if t_idx - k > 0:
+        if t_idx-k > 0:
             start = t_idx - k
         else:
             start = 0
         l_words = text[start:t_idx]
-        if t_idx + k < len(text):
-            end = t_idx + k
+        if t_idx+k < len(text):
+            end = t_idx+k
         else:
             end = len(text)
         r_words = text[t_idx:end]
@@ -89,16 +94,16 @@ def get_context_words(text, k, t_idx, split=False):
 
 
 def get_context_words_span(text, k, t_idx):
-    start = t_idx - k
-    end = t_idx + k
-    if (t_idx - k < 0):
-        start = 0
-    if (t_idx + k > len(text)):
-        end = len(text)
+    start=t_idx-k
+    end=t_idx+k
+    if(t_idx-k<0):
+        start=0
+    if(t_idx+k>len(text)):
+        end=len(text)
 
-    words = text[start:end]
+    words= text[start:end]
     # print(words)
-    return (words)
+    return(words)
 
 
 # Finds and returns the context with size k from a story text that
@@ -120,19 +125,19 @@ def get_best_context(story, question, k):
     return best_context
 
 
-def get_best_context_w_pos(story, story_pos, question, question_pos, k):
+def get_best_context_w_pos(story, story_pos, question, question_pos,k):
     best_context_matches = 0
     for t_idx in range(len(story)):
-        context_words = get_context_words(story, k, t_idx, False)
-        context_pos = get_context_words(story_pos, k, t_idx, False)
+        context_words = get_context_words(story, k, t_idx,False)
+        context_pos = get_context_words(story_pos, k, t_idx,False)
         # print(context_words,context_pos)
         # asdf
         curr_context_matches = 0
-        for q_word, q_pos in zip(question, question_pos):
+        for q_word,q_pos in zip(question, question_pos):
             # print(q_word,q_pos)
             # TODO: if duplicates exist, this still only counts 1
-            for cword, cpos in zip(context_words, context_pos):
-                if q_word == cword and cpos == q_pos:
+            for cword, cpos in zip(context_words,context_pos):
+                if q_word == cword and cpos==q_pos:
                     curr_context_matches += 1
                     # print('yay')
         if curr_context_matches > best_context_matches:
@@ -153,29 +158,38 @@ def get_best_context_w_weight(story_data, question_data, orig_story, attribute_d
             if q_word[0].text.lower() in q_words:
                 continue
             for s_word in context_words:
-                for w_type in weight_dict:
-                    if(w_type == 'TEXT'):
-                        if q_word[0].text == bump_word and q_word[0].similarity(s_word[0]) > .75:
-                            b_weight = weight_dict["BUMP"]
-                        else:
-                            b_weight = 1
-                        curr_context_weight += q_word[0].similarity(s_word[0]) * weight_dict[w_type] * b_weight
-                    elif(w_type == 'POS'):
-                        curr_attr = attribute_dict[q_type][w_type]
+                for w_type in weight_dict: 
+                    if (w_type == 'text_weight'):
+                        if q_word[0].has_vector and s_word[0].has_vector:
+                            if q_word[0].similarity(s_word[0]) > 0:
+                                if q_word[0].text == bump_word and q_word[0].similarity(s_word[0]) > .75:
+                                    b_weight = weight_dict["bump_weight"]
+                                else:
+                                    b_weight = 1
+
+                                # # This is here just to gain some insight into word pairs
+                                # # and their similarity scores
+                                # # Perhaps if words' similarity scores fall below a certain
+                                # # threshold then we don't allow it to contribute to the
+                                # # overall context weight?  Also, ignore negative sim scores?
+                                # sim = q_word[0].similarity(s_word[0])
+                                # w_pair = q_word[0].text + ' ' + s_word[0].text
+                                # if w_pair not in sims:
+                                #     sims.append(w_pair)
+                                #     print(w_pair, sim)
+
+                                curr_context_weight += q_word[0].similarity(s_word[0]) * weight_dict[w_type] * b_weight
+                    elif (w_type == 'pos_weight'):
+                        curr_attr = attribute_dict[q_type]['POS']
                         if(s_word[0].pos_ in curr_attr):
                             curr_context_weight += curr_attr[s_word[0].pos_] * weight_dict[w_type]
-                    elif(w_type =='ENT'):
-                        continue
-                    else:
-                        continue
 
         #context level comparisons
-        if('ENT' in weight_dict):
+        if('ent_weight' in weight_dict):
             entities = []
             # Check if current context contains any entities
-            tokenized_s = [token for token in orig_story]
-            context_start_idx = tokenized_s[context_words[0][1]].idx
-            context_end_idx = tokenized_s[context_words[-1][1]].idx + len(tokenized_s[context_words[-1][1]].text) - 1
+            context_start_idx = context_words[0][0].idx
+            context_end_idx = context_words[-1][0].idx + len(context_words[-1][0].text) - 1
             for ent in orig_story.ents:
                 start_idx = ent.start_char
                 end_idx = ent.end_char
@@ -193,19 +207,54 @@ def get_best_context_w_weight(story_data, question_data, orig_story, attribute_d
             curr_attr = attribute_dict[q_type]['ENT']
             for ent in entities:
                 if ent.label_ in curr_attr:
-                    # curr_context_weight += curr_attr[ent.label_] * weight_dict['ENT']
-                    curr_context_weight += curr_attr[ent.label_] * weight_dict['ENT'] * 4
+                    curr_context_weight += curr_attr[ent.label_] * weight_dict['ent_weight']
         if curr_context_weight > best_context_weight:
             best_context_weight = curr_context_weight
             best_context = context_words
-            best_ents = entities
+    return best_context, best_context_weight
 
-    # Fetch unfiltered best context
-    start_idx = best_context[0][1]
-    end_idx = best_context[-1][1]
-    unfiltered = orig_story[start_idx:end_idx+1]
-    return unfiltered, best_ents
+def get_sentence_weight(sentence, question_data, orig_story, attribute_dict, q_type, weight_dict, bump_word, q_words):
+    sentence_weight = 0
+    for q_word in question_data:
+        if q_word[0].text.lower() in q_words:
+            continue
+        for s_word in sentence:
+            if s_word.pos_ == 'PUNCT'or s_word.pos_ == "SPACE":
+                continue
+            for w_type in weight_dict:
+                if(w_type == 'text_weight'):
+                    if q_word[0].has_vector and s_word.has_vector:
+                        if q_word[0].similarity(s_word) > 0:
+                            if q_word[0].text == bump_word and q_word[0].similarity(s_word) > .75:
+                                b_weight = weight_dict["bump_weight"]
+                            else:
+                                b_weight = 1
+                            sentence_weight += q_word[0].similarity(s_word) * weight_dict[w_type] * b_weight
+                elif(w_type == 'pos_weight'):
+                    curr_attr = attribute_dict[q_type]['POS']
+                    if(s_word.pos_ in curr_attr):
+                        sentence_weight += curr_attr[s_word.pos_] * weight_dict[w_type]
 
+    #context level comparisons
+    if('ent_weight' in weight_dict):
+        entities = []
+        # Check if current sentence contains any entities
+        context_start_idx = sentence[0].idx
+        context_end_idx = sentence[-1].idx + len(sentence[-1].text) - 1
+        for ent in orig_story.ents:
+            start_idx = ent.start_char
+            end_idx = ent.end_char
+            if start_idx >= context_start_idx and end_idx <= context_end_idx:
+                entities.append(ent)
+            elif start_idx > context_end_idx:
+                break
+        curr_attr = attribute_dict[q_type]['ENT']
+        for ent in entities:
+            if ent.label_ in curr_attr:
+                sentence_weight += curr_attr[ent.label_] * weight_dict['ent_weight']
+
+    sentence_weight = sentence_weight / len(sentence)
+    return sentence_weight
 
 # Removes any words with POS in filter tags from text, returns filtered text
 def filter_by_POS(tagged_text, filter_tags):
@@ -222,8 +271,8 @@ def filter_by_stopwords(text, stopwords):
 
 def vectorize_list(text):
     str1 = ""
-    for ele in text:
-        str1 += ele + " "
+    for ele in text:  
+        str1 += ele+" "
     vectorized = nlp(str1)
     return vectorized
 
@@ -280,11 +329,30 @@ def get_q_words_count(nlp_q, nlp_a):
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
             elif w.lower() == 'why':
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
-                # print(w.lower() + ' ' + nlp_q[i + 1].text + ' (' + nlp_q[i + 1].pos_ + ')')
 
             else:
-                # q2 = w.lower() + ' ' + tokenized_q[i + 1]
                 q2 = w.lower() + ' ' + nlp_q[i + 1].text
+
+            # Further split our biggest category
+            # ROOT 'do' implies answer is VERB-based
+            # Otherwise, more often than not, answer is NOUN-based
+            if q2 == 'what did':
+                for t in nlp_q:
+                    if t.dep_ == 'ROOT':
+                        rw = t.text
+                        if rw == 'do':
+                            q2 += ' ' + rw
+                        elif rw == 'eat':
+                            q2 += ' ' + rw
+                        else:
+                            increase_sim_weight = True
+                        break
+            
+            if q2=="who is":
+                if "PERSON" in [e.label_ for e in nlp_q.ents]:
+                    q2+= ' ' + 'identity'
+                else:
+                    q2+=' '+'individual'
 
             if q2 not in list(q_2word_counts.keys()):
                 # q_2word_counts[q2] = 1
@@ -295,7 +363,7 @@ def get_q_words_count(nlp_q, nlp_a):
                 q_2word_counts[q2]['POS'] = {}
                 q_2word_counts[q2]['Avg Ans Len'] = a_lens  # Count lengths for now, take average at the end
                 if increase_sim_weight:
-                    q_2word_counts[q2]['Inc Sim Weight'] = True  # increase the similarity weight of the 2nd q word
+                    q_2word_counts[q2]['Inc Sim Weight'] = True  # increase the similarity weight of the bump word
                 else:
                     q_2word_counts[q2]['Inc Sim Weight'] = False
             else:
@@ -303,12 +371,25 @@ def get_q_words_count(nlp_q, nlp_a):
                 q_2word_counts[q2]['Count'] += 1
                 q_2word_counts[q2]['Avg Ans Len'].extend(a_lens)
 
+
             for a in nlp_a:
+
+                # THIS CAN BE USEFUL FOR DEBUGGING
+                # if q2 == 'when did':
+                #     for t in nlp_q:
+                #         if t.dep_ == 'ROOT':
+                #             rw = t.text
+                #             break
+                #     print(nlp_q.text)
+                #     print(a.text)
+                #     print('')
+
                 for ent in a.ents:
                     if ent.label_ not in q_2word_counts[q2]['ENT']:
                         q_2word_counts[q2]['ENT'][ent.label_] = 1
                     else:
                         q_2word_counts[q2]['ENT'][ent.label_] += 1
+
                 for token in a:
                     if (not token.is_stop and not token.pos_ == 'SPACE'):
                         tag = token.pos_
@@ -330,15 +411,145 @@ def get_q_type(question, q_words):
     for i, token in enumerate(tokenized_q):
         if token.lower() in q_words:
             q_type = token.lower() + ' ' + question[i + 1].text
+
+            # SPECIAL CASES
+            if q_type == 'what did':
+                for t in question:
+                    if t.dep_ == 'ROOT':
+                        rw = t.text
+                        if rw == 'do':
+                            q_type += ' ' + rw
+                        else:  # not every category needs a bump word, but this is where they get assigned
+                            bump_word = rw
+                        break
+            if q_type=="who is":
+                if "PERSON" in [e.label_ for e in question.ents]:
+                    q_type+= ' ' + 'identity'
+                else:
+                    q_type+=' '+'individual'                
             if q_type not in list(q_2word_counts.keys()):
                 q_type = token.lower() + ' ' + question[i + 1].pos_
                 if q_type not in list(q_2word_counts.keys()):
                     q_type = 'Generic'
             if q_2word_counts[q_type]['Inc Sim Weight']:
-                bump_word = question[i + 1].text
+                if q_type != 'what did':
+                    bump_word = question[i + 1].text
             return q_type, bump_word
-    print('Unrecognized question type!  Assigning "Generic".')
     return "Generic", bump_word
+
+leading_punct=',:;.!?\'\"({)}'
+trailing_punct=',:;.!?\'\"({)}$'
+def get_fscore(response, key):
+    r=response.split()
+    response=[]
+    for y in r:
+        adj=y.lower().lstrip(leading_punct).rstrip(trailing_punct)
+        if adj != '':
+            response.append(adj)
+    best_fm=0
+    b_recall=0
+    b_prec=0
+    for i,a in enumerate(key):
+        asdf=a.split()
+        ans=[]
+        for x in asdf:
+            adjx=x.lower().lstrip(leading_punct).rstrip(trailing_punct)
+            if adjx != '':
+                ans.append(adjx)
+        correct = 0
+        cwords = set()
+        for wrd in response:
+            w = wrd.lower().strip()
+            if w in ans:
+                if w not in cwords:
+                    correct += 1
+                    cwords.add(w)
+        recall = correct/len(ans)
+        prec = correct/len(response)
+        fm = 0
+        if recall+prec == 0:
+            fm = 0
+        else:
+            fm =(2*recall*prec)/(recall+prec)
+        if(fm > best_fm):
+            best_fm = fm
+            best_fm_ind = i
+            b_recall = recall
+            b_prec = prec
+    return best_fm,b_prec, b_recall
+
+
+def ent_trim(q_type, sentences, ent_dict):
+    sorted_ent = [k for k, v in sorted(ent_dict[q_type]['ENT'].items(), key=lambda item: item[1], reverse=True)]
+    ents_ans = []
+    for i in range(len(sorted_ent)):
+        k = sorted_ent[i]
+        for score in sentences:
+            for ent in sentences[score].ents:
+                if ent.label_ == k:
+                    ents_ans.append(ent)
+            if len(ents_ans) > 0:
+                s = ''
+                for e in ents_ans:
+                    s += e.text + ' '
+                s = s.rstrip()
+                return nlp(s)
+                # return s
+    return sorted_sents[list(sorted_sents.keys())[0]]
+
+
+def why_bec_trim(sentence):
+    return nlp('because' + sentence.text.split('because', 1)[1])
+
+
+def get_biggest_pps(sentence):
+    # Find prepositional phrases
+    pps = []
+    pps_text = []
+    for token in best_sentence:
+        if token.pos_ == 'ADP':
+            pp = [tok for tok in token.subtree]
+            pps.append(pp)
+            pp_text = ' '.join([tok.orth_ for tok in token.subtree])
+            pps_text.append(pp_text)
+    # Check if pp is a subset of a larger pp
+    i_del = []
+    for i in range(len(pps_text)):
+        for j in range(len(pps_text)):
+            if i == j:
+                continue
+            else:
+                if pps_text[i] in pps_text[j]:  # this pp in part of a larger one
+                    i_del.append(i)
+    # filter pps to only contain parent pps
+    filtered_pps = []
+    for i in range(len(pps)):
+        if i not in i_del:
+            filtered_pps.append(pps[i])
+    return filtered_pps
+
+
+def when_did_trim(sentence, pps):
+    # First, try to return pps with DATEs in them
+    best_pps = []
+    for pp in pps:
+        for token in pp:
+            if token.ent_type_ == 'DATE':
+                pp = ' '.join([t.text for t in pp])
+                best_pps.append(pp)
+                break
+    if len(best_pps) > 0:
+        return ' '.join(best_pps)
+
+    # Next, try to return DATEs
+    best_ents = []
+    for ent in sentence.ents:
+        if ent.label_ == 'DATE':
+            best_ents.append(ent.text)
+    if len(best_ents) > 0:
+        return ' '.join(best_ents)
+
+    return sentence.text
 
 # ===========================
 # ===========================
@@ -387,7 +598,7 @@ q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which']
 
 
 #######Build Dictionary for Question Types#######
-q_2word_counts = np.load('./attribute_dictionary_MASTER', allow_pickle=True)
+q_2word_counts = np.load('./attribute_dictionary_testing', allow_pickle=True)
 
 id_to_type = {}  # link q to type
 q_type_set = set()
@@ -614,43 +825,47 @@ best_params_per_story={}
 # what ADP
 # what ADV
 # what time
+# 'where is',
+# 'who is',
+# 'what AUX',
+# 'who VERB',
+# 'how ADJ',
+# 'how much',
+# 'what NOUN',
+# 'how many',
+# 'when did',
+# 'why did',
+# 'who was',
+# 'where did',
+# 'who AUX',
+# 'how VERB',
+# 'what happened',
+# 'how old',
+# 'when VERB',
+# 'what VERB',
+# 'when AUX',
+# 'how long',
+# 'what NUM',
+# 'what is',
+# 'what type',
+# 'who did',
+# 'which PROPN',
 to_use_qtype=[
-'where is',
-'who is',
-'what AUX',
-'who VERB',
-'how ADJ',
-'how much',
-'what NOUN',
-'how many',
-'when did',
-'why did',
-'who was',
-'where did',
-'who AUX',
-'how VERB',
-'what happened',
-'how old',
-'when VERB',
-'what VERB',
-'when AUX',
-'how long',
-'what NUM',
-'what is',
-'what type',
-'who did',
-'which PROPN',
-'why PROPN',
-'what day',
-'what color',
-'which of',
-'when PROPN',
-'what animal',
-'who DET',
-'who CCONJ',
-'whose PROPN',
-'which VERB',
-'which AUX',
+# 'why PROPN',
+# 'what day',
+# 'what color',
+# 'which of',
+# 'when PROPN',
+# 'what animal',
+# 'who DET',
+# 'who CCONJ',
+# 'whose PROPN',
+# 'which VERB',
+# 'which AUX',
+]
+to_use_qtype=[
+    'who is identity',
+    'who is individual'
 ]
 for qtype_i in to_use_qtype:
     print("length of set is ", len(qtype_to_id[qtype_i]))
@@ -684,7 +899,34 @@ for qtype_i in to_use_qtype:
                             # best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b},qid_to_bump[question_id])
                             best_context, ents = get_best_context_w_weight(filtered_s, filtered_q, orig_story, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b}, qid_to_bump[question_id], q_words)
                             # to_check = qid_to_answ[question_i]
-                            fscore, prec, best_recall=get_fscore(best_context.text, answer)
+                            sents_text = []
+                            sents = []
+                            for w in best_context:
+                                if w[0].sent.text not in sents_text:
+                                    sents_text.append(w[0].sent.text)
+                                    sents.append(w[0].sent)
+                            # Find the sentence with the highest per-word weight
+                            best_weight = 0
+                            sorted_sents = {}  # not sorted until they get passed to ent_sent_trim
+                            for i,s in enumerate(sents):
+                                st = [token for token in s]
+                                sentence_weight = get_sentence_weight(st, filtered_q, nlp(story), q_2word_counts, q_type, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b}, qid_to_bump[question_id], q_words)
+                                sorted_sents[str(sentence_weight)] = s
+                                if i == 0:
+                                    best_sentence = s
+                                    best_weight = sentence_weight
+                                elif sentence_weight > best_weight:
+                                    best_weight = sentence_weight
+                                    best_sentence = s
+                            sorted_sents = dict(sorted(sorted_sents.items(), reverse=True))
+
+                            best_context_text = ''
+                            for t in best_context:
+                                best_context_text += t[0].text + ' '
+                            try:
+                                fscore, prec, best_recall=get_fscore(best_sentence.text, answer)
+                            except TypeError:
+                                fscore, prec, best_recall=get_fscore(best_context, answer)
                             # best_fm_ind = 0
                             # best_fm = 0
                             # # best_recall_ind = 0
@@ -753,11 +995,11 @@ for qtype_i in to_use_qtype:
     best_params[qtype_i]["k"]=(best_w_k)
     best_params[qtype_i]["bump_weight"]=(best_w_b)
     try: 
-        f = open('tuned_weights_the_rest', 'wb')
+        f = open('tuned_weights_whois', 'wb')
         pickle.dump(best_params, f) 
         f.close()
     except: 
-        print("Something went wrong")
+        print("AAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHH Something went wrong")
     print("DONE WITH Q")
     # print('for type',qtype_i)
     # # print(best_context, response)

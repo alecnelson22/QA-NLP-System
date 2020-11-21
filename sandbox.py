@@ -45,21 +45,26 @@ count_bad=0
 good_counts={}
 bad_counts={}
 good_questions={}
+all_questions={}
 for typ in ordered:
     print('for qtype', typ, 'ave recall is ', ordered[typ])
     bad_counts[typ]=0
     good_counts[typ]=0
+    all_questions[typ]=[]
     for q,quest in enumerate(summary[typ]):
         if summary[typ][q]['recall']<.8:
             if typ not in bad_questions:
                 bad_questions[typ]=[]
             bad_questions[typ].append(summary[typ])
+            all_questions[typ].append(summary[typ])
             count_bad+=1
             bad_counts[typ]+=1
         else:
             if typ not in good_questions:
                 good_questions[typ]=[]
             good_questions[typ].append(summary[typ])
+            all_questions[typ].append(summary[typ])
+
             good_counts[typ]+=1
         count+=1
 print('-------------')
@@ -82,10 +87,10 @@ tity_qs=[
 'how old',
 'when was',
 ]
-for typ in good_questions:
+for typ in all_questions:
     # if(good_counts[typ]/bad_counts[typ]>=1):
     #     continue
-    if typ in tity_qs:
+    if typ != "what is":
         continue
     answer_parses[typ]=[]
     answer_keys[typ]=[]
@@ -95,11 +100,16 @@ for typ in good_questions:
     
     for q,quest in enumerate(good_questions[typ]):
         ents=summary[typ][q]['best_sent_ents']
+        nlpr=nlp(summary[typ][q]['best_sentence'])
         print('---------------------------------')
         print('question',summary[typ][q]['question'])
+        print("recall",summary[typ][q]['recall'])
         print('key ', summary[typ][q]['answer-key'])
         print('best_sentence', summary[typ][q]['best_sentence'])
         print('Entities in sentence: ', ents)
+        print('dep chunks text/root_dep in question are ', [(chunk.text, chunk.root.dep_) for chunk in nlpr.noun_chunks])
+        print('critical word/POS/dep in respons are ', [(token.text,token.pos_,token.dep_) for token in nlpr if(token.dep_=="ROOT" or token.dep_=="dobj" or token.dep_=="nsubj")])
+
         print('') 
 
         print('--answer characteristics--')

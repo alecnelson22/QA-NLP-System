@@ -10,89 +10,90 @@ import pickle
 # my_dictr2=np.load('./tuned_weights_shortf_whenaux', allow_pickle=True)
 # my_dictd=np.load('./tuned_weights_shortd', allow_pickle=True)
 # my_dictheyyy=np.load('./tuned_weights_how_ADJ', allow_pickle=True)
-who_adv=np.load('./tuned_weights_torin_whoadv', allow_pickle=True)
-whereverb=np.load('./tuned_weights_torin_whereverb', allow_pickle=True)
-whatnoun=np.load('./tuned_weights_alec_whatNOUN', allow_pickle=True)
-the_rest=np.load('./tuned_weights_the_rest', allow_pickle=True)
+# who_adv=np.load('./tuned_weights_torin_whoadv', allow_pickle=True)
+# whereverb=np.load('./tuned_weights_torin_whereverb', allow_pickle=True)
+# whatnoun=np.load('./tuned_weights_alec_whatNOUN', allow_pickle=True)
+# the_rest=np.load('./tuned_weights_the_rest', allow_pickle=True)
+who_is=np.load('./tuned_weights_whois', allow_pickle=True)
 
 
 
 
 added=[]
 
-my_final_dict={}
-for typ in whatnoun:
-    if whatnoun[typ]["text_weight"]!=0:
-        if typ not in added:
+my_final_dict=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
+for typ in who_is:
+    if who_is[typ]["text_weight"]!=0:
+        if typ not in my_final_dict:
             my_final_dict[typ]={}
 
             print('for type ', typ)
-            print('text_weight', whatnoun[typ]["text_weight"])
-            print('pos_weight', whatnoun[typ]["pos_weight"])
-            print('ent_weight', whatnoun[typ]["ent_weight"])
-            print('k', whatnoun[typ]["k"])
-            print('bump_weight', whatnoun[typ]["bump_weight"])
+            print('text_weight', who_is[typ]["text_weight"])
+            print('pos_weight', who_is[typ]["pos_weight"])
+            print('ent_weight', who_is[typ]["ent_weight"])
+            print('k', who_is[typ]["k"])
+            print('bump_weight', who_is[typ]["bump_weight"])
             added.append(typ)
-            my_final_dict[typ]['pos_weight']=whatnoun[typ]["pos_weight"]
-            my_final_dict[typ]['ent_weight']=whatnoun[typ]["ent_weight"]
-            my_final_dict[typ]['bump_weight']=whatnoun[typ]["bump_weight"]
-            my_final_dict[typ]['k']=whatnoun[typ]["k"]
-            my_final_dict[typ]['text_weight']=whatnoun[typ]["text_weight"]
+            my_final_dict[typ]['pos_weight']=who_is[typ]["pos_weight"]
+            my_final_dict[typ]['ent_weight']=who_is[typ]["ent_weight"]
+            my_final_dict[typ]['bump_weight']=who_is[typ]["bump_weight"]
+            my_final_dict[typ]['k']=who_is[typ]["k"]
+            my_final_dict[typ]['text_weight']=who_is[typ]["text_weight"]
 
-for typ in whereverb:
-    if whereverb[typ]["text_weight"]!=0:
-        if typ not in added:
-            my_final_dict[typ]={}
+# for typ in whereverb:
+#     if whereverb[typ]["text_weight"]!=0:
+#         if typ not in added:
+#             my_final_dict[typ]={}
 
-            print('for type ', typ)
-            print('text_weight', whereverb[typ]["text_weight"])
-            print('pos_weight', whereverb[typ]["pos_weight"])
-            print('ent_weight', whereverb[typ]["ent_weight"])
-            print('k', whereverb[typ]["k"])
-            print('bump_weight', whereverb[typ]["bump_weight"])
-            added.append(typ)
-            my_final_dict[typ]['pos_weight']=whereverb[typ]["pos_weight"]
-            my_final_dict[typ]['ent_weight']=whereverb[typ]["ent_weight"]
-            my_final_dict[typ]['bump_weight']=whereverb[typ]["bump_weight"]
-            my_final_dict[typ]['k']=whereverb[typ]["k"]
-            my_final_dict[typ]['text_weight']=whereverb[typ]["text_weight"]
-for typ in who_adv:
-    if who_adv[typ]["text_weight"]!=0:
-        if typ not in added:
-            my_final_dict[typ]={}
+#             print('for type ', typ)
+#             print('text_weight', whereverb[typ]["text_weight"])
+#             print('pos_weight', whereverb[typ]["pos_weight"])
+#             print('ent_weight', whereverb[typ]["ent_weight"])
+#             print('k', whereverb[typ]["k"])
+#             print('bump_weight', whereverb[typ]["bump_weight"])
+#             added.append(typ)
+#             my_final_dict[typ]['pos_weight']=whereverb[typ]["pos_weight"]
+#             my_final_dict[typ]['ent_weight']=whereverb[typ]["ent_weight"]
+#             my_final_dict[typ]['bump_weight']=whereverb[typ]["bump_weight"]
+#             my_final_dict[typ]['k']=whereverb[typ]["k"]
+#             my_final_dict[typ]['text_weight']=whereverb[typ]["text_weight"]
+# for typ in who_adv:
+#     if who_adv[typ]["text_weight"]!=0:
+#         if typ not in added:
+#             my_final_dict[typ]={}
 
-            print('for type ', typ)
-            print('text_weight', who_adv[typ]["text_weight"])
-            print('pos_weight', who_adv[typ]["pos_weight"])
-            print('ent_weight', who_adv[typ]["ent_weight"])
-            print('k', who_adv[typ]["k"])
-            print('bump_weight', who_adv[typ]["bump_weight"])
-            added.append(typ)
-            my_final_dict[typ]['pos_weight']=who_adv[typ]["pos_weight"]
-            my_final_dict[typ]['ent_weight']=who_adv[typ]["ent_weight"]
-            my_final_dict[typ]['bump_weight']=who_adv[typ]["bump_weight"]
-            my_final_dict[typ]['k']=who_adv[typ]["k"]
-            my_final_dict[typ]['text_weight']=who_adv[typ]["text_weight"]
+#             print('for type ', typ)
+#             print('text_weight', who_adv[typ]["text_weight"])
+#             print('pos_weight', who_adv[typ]["pos_weight"])
+#             print('ent_weight', who_adv[typ]["ent_weight"])
+#             print('k', who_adv[typ]["k"])
+#             print('bump_weight', who_adv[typ]["bump_weight"])
+#             added.append(typ)
+#             my_final_dict[typ]['pos_weight']=who_adv[typ]["pos_weight"]
+#             my_final_dict[typ]['ent_weight']=who_adv[typ]["ent_weight"]
+#             my_final_dict[typ]['bump_weight']=who_adv[typ]["bump_weight"]
+#             my_final_dict[typ]['k']=who_adv[typ]["k"]
+#             my_final_dict[typ]['text_weight']=who_adv[typ]["text_weight"]
 
-for typ in the_rest:
-    if len(the_rest[typ])>0:
-        if the_rest[typ]["text_weight"]!=0:
-            if typ not in added:
-                my_final_dict[typ]={}
+# for typ in the_rest:
+#     if len(the_rest[typ])>0:
+#         if the_rest[typ]["text_weight"]!=0:
+#             if typ not in added:
+#                 my_final_dict[typ]={}
 
-                print('for type ', typ)
-                print('text_weight', the_rest[typ]["text_weight"])
-                print('pos_weight', the_rest[typ]["pos_weight"])
-                print('ent_weight', the_rest[typ]["ent_weight"])
-                print('k', the_rest[typ]["k"])
-                print('bump_weight', the_rest[typ]["bump_weight"])
-                added.append(typ)
-                my_final_dict[typ]['pos_weight']=the_rest[typ]["pos_weight"]
-                my_final_dict[typ]['ent_weight']=the_rest[typ]["ent_weight"]
-                my_final_dict[typ]['bump_weight']=the_rest[typ]["bump_weight"]
-                my_final_dict[typ]['k']=the_rest[typ]["k"]
-                my_final_dict[typ]['text_weight']=the_rest[typ]["text_weight"]
-    # print(my_dict)
+#                 print('for type ', typ)
+#                 print('text_weight', the_rest[typ]["text_weight"])
+#                 print('pos_weight', the_rest[typ]["pos_weight"])
+#                 print('ent_weight', the_rest[typ]["ent_weight"])
+#                 print('k', the_rest[typ]["k"])
+#                 print('bump_weight', the_rest[typ]["bump_weight"])
+#                 added.append(typ)
+#                 my_final_dict[typ]['pos_weight']=the_rest[typ]["pos_weight"]
+#                 my_final_dict[typ]['ent_weight']=the_rest[typ]["ent_weight"]
+#                 my_final_dict[typ]['bump_weight']=the_rest[typ]["bump_weight"]
+#                 my_final_dict[typ]['k']=the_rest[typ]["k"]
+#                 my_final_dict[typ]['text_weight']=the_rest[typ]["text_weight"]
+#     # print(my_dict)
 # # to_add=[]
 # print("l")
 # for typ in my_dictl:
