@@ -14,16 +14,17 @@ import pickle
 # whereverb=np.load('./tuned_weights_torin_whereverb', allow_pickle=True)
 # whatnoun=np.load('./tuned_weights_alec_whatNOUN', allow_pickle=True)
 # the_rest=np.load('./tuned_weights_the_rest', allow_pickle=True)
-who_is=np.load('./tuned_weights_whois', allow_pickle=True)
+who_is=np.load('./tuned_weights_TORIN', allow_pickle=True)
 
 
 
 
 added=[]
 
-my_final_dict=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
+# my_final_dict=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
+my_final_dict={}
 for typ in who_is:
-    if who_is[typ]["text_weight"]!=0:
+    # if who_is[typ]["text_weight"]!=0:
         if typ not in my_final_dict:
             my_final_dict[typ]={}
 
@@ -255,7 +256,7 @@ for typ in my_final_dict:
     #         print("not added: ",typ)
 
 try: 
-    f = open('tuned_weights_TEST_ALL', 'wb') 
+    f = open('tuned_weights_MASTER_UPDATED', 'wb') 
     pickle.dump(my_final_dict, f) 
     f.close()
 except: 
