@@ -161,7 +161,7 @@ def get_best_context_w_weight(story_data, question_data, orig_story, attribute_d
                 for w_type in weight_dict: 
                     if (w_type == 'text_weight'):
                         if q_word[0].has_vector and s_word[0].has_vector:
-                            if q_word[0].similarity(s_word[0]) > 0:
+                            if q_word[0].similarity(s_word[0]) > weight_dict['threshold']:
                                 if q_word[0].text == bump_word and q_word[0].similarity(s_word[0]) > .75:
                                     b_weight = weight_dict["bump_weight"]
                                 else:
@@ -557,6 +557,8 @@ def when_did_trim(sentence, pps):
 #######Load Data####### these are test sets
 stories = {}
 questions = {}
+extra_questions={}
+extra_stories={}
 # Original data
 for fname in os.listdir(os.getcwd() + '/data'):
     id = fname.split('.')[0]
@@ -574,15 +576,15 @@ for fname in os.listdir(os.getcwd() + '/testset1'):
     questions[id] = question_data
 
 # # Extra data
-# for fname in os.listdir(os.getcwd() + '/extra-data'):
-#     if '.answers' in fname:
-#         id = fname.split('.answers')[0]
-#         question_data, _ = load_QA('extra-data/' + id + '.answers')
-#         questions[id] = question_data
-#     else:
-#         id = fname.split('.story')[0]
-#         story_data = load_story('extra-data/' + id + '.story')
-#         stories[id] = story_data
+for fname in os.listdir(os.getcwd() + '/extra-data'):
+    if '.answers' in fname:
+        id = fname.split('.answers')[0]
+        question_data, _ = load_QA('extra-data/' + id + '.answers')
+        extra_questions[id] = question_data
+    else:
+        id = fname.split('.story')[0]
+        story_data = load_story('extra-data/' + id + '.story')
+        extra_stories[id] = story_data
 
 
 #######yper parameters#######
@@ -608,6 +610,7 @@ qid_to_vecq = {}
 qid_to_answ = {}
 qid_to_bump = {}
 qid_to_orig_s = {}
+qtype_counts={}
 for story_id in list(questions.keys()):
     story_qa = questions[story_id]
     # story = stories[story_id]['TEXT']
@@ -618,6 +621,9 @@ for story_id in list(questions.keys()):
         nlp_a = [nlp(a) for a in answers]
 
         q_type, bw = get_q_type(nlp(question), q_words)
+        if q_type not in qtype_counts:
+            qtype_counts[q_type]=0
+        qtype_counts[q_type]+=1
         #q_type = get_q_words_count(nlp(question), nlp_a)
 
         # if q_type not in q_2word_counts:
@@ -628,6 +634,52 @@ for story_id in list(questions.keys()):
 
         id_to_type[question_id] = q_type
         q_type_set.add(q_type)
+
+extra_qs_types={}
+extra_st_types={}
+extra_qids={}
+for story_id in list(extra_questions.keys()):
+    story_qa = extra_questions[story_id]
+    # story = stories[story_id]['TEXT']
+    # vectorized_s = vectorize_list(filtered_s_text)
+    for question_id in list(story_qa.keys()):
+        question = story_qa[question_id]['Question']
+        answers = story_qa[question_id]['Answer']
+        nlp_a = [nlp(a) for a in answers]
+
+        q_type, bw = get_q_type(nlp(question), q_words)
+        if q_type not in extra_qs_types:
+            extra_qs_types[q_type]=[]
+            extra_st_types[q_type]=[]
+        extra_qs_types[q_type].append(story_id)
+        extra_st_types[q_type].append(story_id)
+        #q_type = get_q_words_count(nlp(question), nlp_a)
+
+        # if q_type not in q_2word_counts:
+        #     tmp = nlp(q_type)
+        #     q_type = tmp[0].text + ' ' + tmp[1].pos_
+        #     if q_type not in q_2word_counts:
+        #         q_type = 'Generic'
+
+        id_to_type[question_id] = q_type
+        q_type_set.add(q_type)
+
+
+for typ in qtype_counts:
+    if qtype_counts[q_type]<53:
+        if typ in extra_qs_types:
+            for qid in extra_qs_types[typ]:
+                if(qtype_counts[typ]==53):
+                    break
+                questions[qid]=extra_questions[qid]
+                stories[qid]=extra_stories[qid]
+                qtype_counts[typ]+=1
+
+# print('[')
+# for typ in qtype_counts:
+#     print('\''+typ+'\''+',')
+
+# print(']')
 
 # new_q2 = {}
 # for k1 in q_2word_counts.keys():
@@ -724,53 +776,14 @@ for story_id in list(questions.keys()):
         #     for w in (resp):
         #         to_check[i].append(w.lower().strip())
         qid_to_answ[question_id] = correct_ans
-leading_punct=',:;.!?\'\"({)}'
-trailing_punct=',:;.!?\'\"({)}$'
-def get_fscore(response, key):
-    r=response.split()
-    response=[]
-    for y in r:
-        adj=y.lower().lstrip(leading_punct).rstrip(trailing_punct)
-        if adj != '':
-            response.append(adj)
-    best_fm=0
-    b_recall=0
-    b_prec=0
-    for i,a in enumerate(key):
-        asdf=a.split()
-        ans=[]
-        for x in asdf:
-            adjx=x.lower().lstrip(leading_punct).rstrip(trailing_punct)
-            if adjx != '':
-                ans.append(adjx)
-        correct = 0
-        cwords = set()
-        for wrd in response:
-            w = wrd.lower().strip()
-            if w in ans:
-                if w not in cwords:
-                    correct += 1
-                    cwords.add(w)
-        recall = correct/len(ans)
-        prec = correct/len(response)
-        fm = 0
-        if recall+prec == 0:
-            fm = 0
-        else:
-            fm =(2*recall*prec)/(recall+prec)
-        if(fm > best_fm):
-            best_fm = fm
-            best_fm_ind = i
-            b_recall = recall
-            b_prec = prec
-    return best_fm,b_prec, b_recall
+
 
 
 ######tune#######
 best_params={} #per q id type
 for typ in q_type_set:
     if typ not in best_params:
-        best_params[typ]={"text_weight":0,"pos_weight":0, "ent_weight":0,'k':0,'bump_weight':0}
+        best_params[typ]={"text_weight":0,"pos_weight":0, "ent_weight":0,'k':0,'bump_weight':0,'threshold':0}
 
 # for typ in best_params:
 #     for wt in best_params[typ]:
@@ -850,7 +863,7 @@ best_params_per_story={}
 # 'what type',
 # 'who did',
 # 'which PROPN',
-to_use_qtype=[
+# to_use_qtype=[
 # 'why PROPN',
 # 'what day',
 # 'what color',
@@ -862,12 +875,76 @@ to_use_qtype=[
 # 'whose PROPN',
 # 'which VERB',
 # 'which AUX',
+# ]
+# to_use_qtype=[
+#     'who is identity',
+#     'who is individual'
+# ]
+
+to_use_qtype_alec=[
+'where is',
+'who is individual',
+'what AUX',
+'who VERB',
+'how ADJ',
+'how much',
+'what NOUN',
+'how many',
+'when did',
+'why did',
+'who was',
+'where did',
+'who AUX',
+'why do',
+'how VERB',
+'who is identity',
+'what happened',
+'how old',
+'when VERB',
+'what VERB',
+'when AUX']
+to_use_qtype_torin=[
+'how long',
+'what NUM',
+'what is',
+'what type',
+'where VERB',
+'what does',
+'whose NOUN',
+'how ADV',
+'when was',
+'what do',
+'how did',
+'what did',
+'why AUX',
+'what ADJ',
+'which NOUN',
+'why VERB',
+'where does',
+'why was',
+'where AUX',
+'how AUX',
+'where ADP',
+'why does',
+'why is',
+'how does',
+'what are',
+'what was',
+'what kind',
+'where was',
+'what were',
+'what did do',
+'who did',
+'which PROPN',
+'which NUM',
+'when PRON',
+'who ADV',
+'Generic',
+'what ADV',
+'what ADP',
+'what time'
 ]
-to_use_qtype=[
-    'who is identity',
-    'who is individual'
-]
-for qtype_i in to_use_qtype:
+for qtype_i in to_use_qtype_torin:
     print("length of set is ", len(qtype_to_id[qtype_i]))
     best_w_t=0
     best_w_p=0
@@ -878,18 +955,19 @@ for qtype_i in to_use_qtype:
     best_w_b=0 
     # best_fm_sum=0
     best_recall_sum = 0
+    best_thresh=0
     j=0
     print("for qtype", qtype_i)
 
     for curr_weight_t in [1,2,4,8]:
-        for curr_weight_p in [.5]:
+        for curr_weight_p in [.5, 1, 2]:
             for curr_weight_e in [1,2,4,8]:
-                k = math.ceil(q_2word_counts[qtype_i]['Avg Ans Len'] / 2)
-                for curr_k in [k, k+1]:
+                curr_k = math.ceil(q_2word_counts[qtype_i]['Avg Ans Len'] / 2)
+                for t in [0,.25,.5]:
                     for curr_b in [2,4]:
                         # curr_fm_sum = 0
                         curr_recall_sum = 0
-                        print('percent done per qtype: ', (j/64.0)*100)
+                        print('percent done per qtype: ', (j/288.0)*100)
                         j+=1
                         for question_i in qtype_to_id[qtype_i]:
                             filtered_s = qid_to_sid[question_i]
@@ -897,7 +975,7 @@ for qtype_i in to_use_qtype:
                             orig_story = qid_to_orig_s[question_i]
                             answer=qid_to_answ[question_i]
                             # best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b},qid_to_bump[question_id])
-                            best_context, ents = get_best_context_w_weight(filtered_s, filtered_q, orig_story, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b}, qid_to_bump[question_id], q_words)
+                            best_context, ents = get_best_context_w_weight(filtered_s, filtered_q, orig_story, q_2word_counts, curr_k, qtype_i,{"text_weight": curr_weight_t, "pos_weight": curr_weight_p, "ent_weight": curr_weight_e, "bump_weight":curr_b, 'threshold':t}, qid_to_bump[question_id], q_words)
                             # to_check = qid_to_answ[question_i]
                             sents_text = []
                             sents = []
@@ -979,7 +1057,8 @@ for qtype_i in to_use_qtype:
                             best_ofr = best_recall
                             best_w_b = curr_b
                             best_recall_sum = curr_recall_sum
-                            print('for weights', curr_weight_t, curr_weight_p, curr_weight_e, curr_k, curr_b)
+                            best_thresh=t
+                            print('for weights', curr_weight_t, curr_weight_p, curr_weight_e, curr_k, curr_b,t)
                             # print(best_context, response)
                             print("recall= ", best_recall_sum)
                             print('\n')
@@ -994,8 +1073,9 @@ for qtype_i in to_use_qtype:
     best_params[qtype_i]["ent_weight"]=(best_w_e)
     best_params[qtype_i]["k"]=(best_w_k)
     best_params[qtype_i]["bump_weight"]=(best_w_b)
+    best_params[qtype_i]['threshold']=t
     try: 
-        f = open('tuned_weights_whois', 'wb')
+        f = open('tuned_weights_TORIN', 'wb')
         pickle.dump(best_params, f) 
         f.close()
     except: 

@@ -556,6 +556,7 @@ def when_did_trim(sentence, pps):
 def get_ncv(sentence):
     chunks = [token for token in sentence.noun_chunks]
     ncv = []
+    # if len(chunks)==1:
     for c in chunks:
         f = sentence[-1]
         if c.end < sentence[-1].i:
@@ -592,7 +593,7 @@ cats = {}
 stories = {}
 questions = {}
 test_answer_key = {}
-# ids=set()
+ids=set()
 for fname in os.listdir(os.getcwd() + '/data'):
     id = fname.split('.')[0]
     story_data = load_story('data/' + id + '.story')
@@ -614,18 +615,18 @@ for fname in os.listdir(os.getcwd() + '/testset1'):
     # ids.add(id)
     # test_answer_key[id] = question_data
 
-for fname in os.listdir(os.getcwd() + '/extra-data'):
-    if '.answers' in fname:
-        id = fname.split('.answers')[0]
-        question_data, _ = load_QA('extra-data/' + id + '.answers')
-        questions[id] = question_data
-    else:
-        id = fname.split('.story')[0]
-        story_data = load_story('extra-data/' + id + '.story')
-        stories[id] = story_data
-        # ids.add(id)
+# for fname in os.listdir(os.getcwd() + '/extra-data'):
+#     if '.answers' in fname:
+#         id = fname.split('.answers')[0]
+#         question_data, _ = load_QA('extra-data/' + id + '.answers')
+#         questions[id] = question_data
+#     else:
+#         id = fname.split('.story')[0]
+#         story_data = load_story('extra-data/' + id + '.story')
+#         stories[id] = story_data
+#         # ids.add(id)
 
-# sids=sorted(ids)
+# # sids=sorted(ids)
 # for id in ids:
 #     print(id)
 
@@ -651,83 +652,83 @@ sims = []
 ####################################
 
 ######Build Dictionary for Question Types#######
-q_2word_counts = {}  # attribute dictionary
-id_to_type = {}  # link q to type
-for story_id in list(questions.keys()):
-    story_qa = questions[story_id]
-    for question_id in list(story_qa.keys()):
-        question = story_qa[question_id]['Question']
-        answers = story_qa[question_id]['Answer']
-        tokenized_q = [token.text for token in nlp(question)]
-        nlp_a = [nlp(a) for a in answers]
-        q_type = get_q_words_count(nlp(question), nlp_a)
-        id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
-# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+# q_2word_counts = {}  # attribute dictionary
+# id_to_type = {}  # link q to type
+# for story_id in list(questions.keys()):
+#     story_qa = questions[story_id]
+#     for question_id in list(story_qa.keys()):
+#         question = story_qa[question_id]['Question']
+#         answers = story_qa[question_id]['Answer']
+#         tokenized_q = [token.text for token in nlp(question)]
+#         nlp_a = [nlp(a) for a in answers]
+#         q_type = get_q_words_count(nlp(question), nlp_a)
+#         id_to_type[question_id] = q_type  # TODO: In theory, this is just a training step.  Thus, id_to_type needs to be removed, since it is referenced in ##run##
+# # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
 
-new_q2 = {}
-for k1 in q_2word_counts.keys():
-    # if q_2word_counts[k1] < 10:
-    #     new_key = [token for token in nlp(k1)]
-    #     new_key = new_key[0].text + ' ' + new_key[1].pos_
-    #     if new_key not in new_q2:
-    #         new_q2[new_key] = q_2word_counts[k1]
-    #     else:
-    #         new_q2[new_key] += q_2word_counts[k1]
-    # else:
-    #     new_q2[k1] = q_2word_counts[k1]
-    if q_2word_counts[k1]['Count'] < 10:
-        new_key = [token for token in nlp(k1)]
-        new_key = new_key[0].text + ' ' + new_key[1].pos_
-        if new_key not in new_q2:
-            new_q2[new_key] = q_2word_counts[k1]
-        else:
-            for k2 in q_2word_counts[k1].keys():
-                if k2 == 'POS' or k2 == 'ENT':
-                    for k3 in q_2word_counts[k1][k2].keys():
-                        if k3 not in new_q2[new_key][k2].keys():
-                            new_q2[new_key][k2][k3] = q_2word_counts[k1][k2][k3]
-                        else:
-                            new_q2[new_key][k2][k3] += q_2word_counts[k1][k2][k3]
-                elif k2 == "Inc Sim Weight":
-                    new_q2[new_key][k2] = q_2word_counts[k1][k2]
-                else:
-                    new_q2[new_key][k2] += q_2word_counts[k1][k2]
-    else:
-        new_q2[k1] = q_2word_counts[k1]
-q_2word_counts = new_q2
-# q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
-# np.save('sorted_qtypes', q_2word_counts)
-get_avg_ans_len()
+# new_q2 = {}
+# for k1 in q_2word_counts.keys():
+#     # if q_2word_counts[k1] < 10:
+#     #     new_key = [token for token in nlp(k1)]
+#     #     new_key = new_key[0].text + ' ' + new_key[1].pos_
+#     #     if new_key not in new_q2:
+#     #         new_q2[new_key] = q_2word_counts[k1]
+#     #     else:
+#     #         new_q2[new_key] += q_2word_counts[k1]
+#     # else:
+#     #     new_q2[k1] = q_2word_counts[k1]
+#     if q_2word_counts[k1]['Count'] < 10:
+#         new_key = [token for token in nlp(k1)]
+#         new_key = new_key[0].text + ' ' + new_key[1].pos_
+#         if new_key not in new_q2:
+#             new_q2[new_key] = q_2word_counts[k1]
+#         else:
+#             for k2 in q_2word_counts[k1].keys():
+#                 if k2 == 'POS' or k2 == 'ENT':
+#                     for k3 in q_2word_counts[k1][k2].keys():
+#                         if k3 not in new_q2[new_key][k2].keys():
+#                             new_q2[new_key][k2][k3] = q_2word_counts[k1][k2][k3]
+#                         else:
+#                             new_q2[new_key][k2][k3] += q_2word_counts[k1][k2][k3]
+#                 elif k2 == "Inc Sim Weight":
+#                     new_q2[new_key][k2] = q_2word_counts[k1][k2]
+#                 else:
+#                     new_q2[new_key][k2] += q_2word_counts[k1][k2]
+#     else:
+#         new_q2[k1] = q_2word_counts[k1]
+# q_2word_counts = new_q2
+# # q_2word_counts = {k: v for k, v in sorted(q_2word_counts.items(), key=lambda item: item[1], reverse=True)}
+# # np.save('sorted_qtypes', q_2word_counts)
+# get_avg_ans_len()
 
-# Normalize q_2word_counts values
-norm_keys = ['ENT', 'POS']  # values to normalize
-for q2 in q_2word_counts.keys():
-    for k in norm_keys:
-        count = 0
-        for item in q_2word_counts[q2][k].keys():
-            count += q_2word_counts[q2][k][item]
-        for item in q_2word_counts[q2][k].keys():
-            q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
+# # Normalize q_2word_counts values
+# norm_keys = ['ENT', 'POS']  # values to normalize
+# for q2 in q_2word_counts.keys():
+#     for k in norm_keys:
+#         count = 0
+#         for item in q_2word_counts[q2][k].keys():
+#             count += q_2word_counts[q2][k][item]
+#         for item in q_2word_counts[q2][k].keys():
+#             q_2word_counts[q2][k][item] = q_2word_counts[q2][k][item] / count
 
-# Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
-# This is in case we come across a question we've never seen
-for k in q_2word_counts.keys():
-    count += q_2word_counts[k]['Count']
-nkeys = len(list(q_2word_counts.keys()))
-gen_keys = ['ENT', 'POS']
-generic_count = {'ENT': {}, 'POS': {}, 'Avg Ans Len': 5, 'Inc Sim Weight': False}
-for k1 in q_2word_counts.keys():
-    cw = q_2word_counts[k1]['Count'] / count
-    for k2 in gen_keys:
-        for k3 in q_2word_counts[k1][k2].keys():
-            if k3 not in generic_count[k2]:
-                generic_count[k2][k3] = q_2word_counts[k1][k2][k3] * cw
-            else:
-                generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
-q_2word_counts['Generic'] = generic_count
-f = open('attribute_dictionary_testing', 'wb')
-pickle.dump(q_2word_counts, f)
-f.close()
+# # Add a 'Generic' feature to our q_2word_counts, a weighted avg of all other features
+# # This is in case we come across a question we've never seen
+# for k in q_2word_counts.keys():
+#     count += q_2word_counts[k]['Count']
+# nkeys = len(list(q_2word_counts.keys()))
+# gen_keys = ['ENT', 'POS']
+# generic_count = {'ENT': {}, 'POS': {}, 'Avg Ans Len': 5, 'Inc Sim Weight': False}
+# for k1 in q_2word_counts.keys():
+#     cw = q_2word_counts[k1]['Count'] / count
+#     for k2 in gen_keys:
+#         for k3 in q_2word_counts[k1][k2].keys():
+#             if k3 not in generic_count[k2]:
+#                 generic_count[k2][k3] = q_2word_counts[k1][k2][k3] * cw
+#             else:
+#                 generic_count[k2][k3] += q_2word_counts[k1][k2][k3] * cw
+# q_2word_counts['Generic'] = generic_count
+# f = open('attribute_dictionary_testing', 'wb')
+# pickle.dump(q_2word_counts, f)
+# f.close()
 # asdf
 # #######LOAD INPUT FOR TESTING #################
 q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
