@@ -589,8 +589,8 @@ for fname in os.listdir(os.getcwd() + '/extra-data'):
 
 #######yper parameters#######
 # k = 5
-weights = {"TEXT": .1, "POS": .5, "ENT": 1}
-bump_weight = 2  # == 1 does nothing, should be greater than 1
+# weights = {"TEXT": .1, "POS": .5, "ENT": 1}
+# bump_weight = 2  # == 1 does nothing, should be greater than 1
 # q_words = ['who', 'what', 'when', 'where', 'why', 'how', 'whose', 'which', 'did', 'are']  # couple weird ones here
 ####################################
 filter_pos_tags = ['PUNCT', 'DET', 'SPACE']
@@ -963,7 +963,7 @@ for qtype_i in to_use_qtype_torin:
         for curr_weight_p in [.5, 1, 2]:
             for curr_weight_e in [1,2,4,8]:
                 curr_k = math.ceil(q_2word_counts[qtype_i]['Avg Ans Len'] / 2)
-                for t in [0,.25,.5]:
+                for curr_thresh in [0,.25,.5]:
                     for curr_b in [2,4]:
                         # curr_fm_sum = 0
                         curr_recall_sum = 0
@@ -975,7 +975,7 @@ for qtype_i in to_use_qtype_torin:
                             orig_story = qid_to_orig_s[question_i]
                             answer=qid_to_answ[question_i]
                             # best_context = get_best_context_w_weight(vectorized_s, vectorized_q, q_2word_counts, curr_k, qtype_i, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b},qid_to_bump[question_id])
-                            best_context, ents = get_best_context_w_weight(filtered_s, filtered_q, orig_story, q_2word_counts, curr_k, qtype_i,{"text_weight": curr_weight_t, "pos_weight": curr_weight_p, "ent_weight": curr_weight_e, "bump_weight":curr_b, 'threshold':t}, qid_to_bump[question_id], q_words)
+                            best_context, ents = get_best_context_w_weight(filtered_s, filtered_q, orig_story, q_2word_counts, curr_k, qtype_i,{"text_weight": curr_weight_t, "pos_weight": curr_weight_p, "ent_weight": curr_weight_e, "bump_weight":curr_b, 'threshold':curr_thresh}, qid_to_bump[question_id], q_words)
                             # to_check = qid_to_answ[question_i]
                             sents_text = []
                             sents = []
@@ -988,7 +988,7 @@ for qtype_i in to_use_qtype_torin:
                             sorted_sents = {}  # not sorted until they get passed to ent_sent_trim
                             for i,s in enumerate(sents):
                                 st = [token for token in s]
-                                sentence_weight = get_sentence_weight(st, filtered_q, nlp(story), q_2word_counts, q_type, {"TEXT": curr_weight_t, "POS": curr_weight_p, "ENT": curr_weight_e, "BUMP":curr_b}, qid_to_bump[question_id], q_words)
+                                sentence_weight = get_sentence_weight(st, filtered_q, nlp(story), q_2word_counts, q_type, {"text_weight": curr_weight_t, "pos_weight": curr_weight_p, "ent_weight": curr_weight_e, "bump_weight":curr_b, 'threshold':curr_thresh}, qid_to_bump[question_id], q_words)
                                 sorted_sents[str(sentence_weight)] = s
                                 if i == 0:
                                     best_sentence = s
@@ -1057,8 +1057,8 @@ for qtype_i in to_use_qtype_torin:
                             best_ofr = best_recall
                             best_w_b = curr_b
                             best_recall_sum = curr_recall_sum
-                            best_thresh=t
-                            print('for weights', curr_weight_t, curr_weight_p, curr_weight_e, curr_k, curr_b,t)
+                            best_thresh=curr_thresh
+                            print('for weights', curr_weight_t, curr_weight_p, curr_weight_e, curr_k, curr_b,curr_thresh)
                             # print(best_context, response)
                             print("recall= ", best_recall_sum)
                             print('\n')
@@ -1073,7 +1073,7 @@ for qtype_i in to_use_qtype_torin:
     best_params[qtype_i]["ent_weight"]=(best_w_e)
     best_params[qtype_i]["k"]=(best_w_k)
     best_params[qtype_i]["bump_weight"]=(best_w_b)
-    best_params[qtype_i]['threshold']=t
+    best_params[qtype_i]['threshold']=best_thresh
     try: 
         f = open('tuned_weights_TORIN', 'wb')
         pickle.dump(best_params, f) 
