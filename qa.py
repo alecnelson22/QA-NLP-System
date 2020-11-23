@@ -7,6 +7,8 @@ import math
 # from nltk.corpus import wordnet
 import pickle
 import spacy
+from spacy.matcher import Matcher
+from spacy.util import filter_spans
 import os
 import sys
 from pysbd.utils import PySBDFactory
@@ -493,13 +495,13 @@ def ent_trim(q_type, sentences, ent_dict):
                 for e in ents_ans:
                     s += e.text + ' '
                 s = s.rstrip()
-                return nlp(s)
+                return s
                 # return s
     return sorted_sents[list(sorted_sents.keys())[0]]
 
 
 def why_bec_trim(sentence):
-    return nlp('because' + sentence.text.split('because', 1)[1])
+    return 'because' + sentence.text.split('because', 1)[1]
 
 
 def get_biggest_pps(sentence):
@@ -548,21 +550,69 @@ def when_did_trim(sentence, pps):
             best_ents.append(ent.text)
     if len(best_ents) > 0:
         return ' '.join(best_ents)
-
     return sentence.text
+
+
+def who_verb_trim(sentence, question):
+    nlp_q = nlp(question.strip())
+    if nlp_q[1].dep_ == 'ROOT':
+        nlp_s = nlp(sentence)
+        for tokq in nlp_s:
+            if tokq.text == nlp_q[1].text:
+                first_ent = None
+                for ent in nlp_s.ents:
+                    if ent.label_ == 'PERSON' or ent.label_ == 'ORG':
+                        if first_ent is None:
+                            first_ent = ent
+                        if ent.end == tokq.i:
+
+                            # check if there are nouns or proper nouns attached and return these too
+                            i = ent.start - 1
+
+                            if ent == first_ent:
+                                sw = False
+                                while i >= 0:
+                                    if nlp_s[i].pos_ == 'NOUN' or nlp_s[i].pos_ == 'PROPN':
+                                        if i == 0:
+                                            break
+                                        i -= 1
+                                        sw = True
+                                    else:
+                                        if not sw:
+                                            i = ent.start
+                                        break
+                            else:
+                                i = first_ent.start
+                            sent = nlp_s[i : ent.end]
+                            return sent.text
+    return sentence
 
 
 # checks if there is a single noun chunk followed by a verb in a sentence, returns them
 def get_ncv(sentence):
     chunks = [token for token in sentence.noun_chunks]
     ncv = []
-    # if len(chunks)==1:
-    for c in chunks:
-        f = sentence[-1]
+    if len(chunks)== 1:
+        c = chunks[0]
         if c.end < sentence[-1].i:
-            v = sentence[c.end]
-            if sentence[c.end].pos_ == 'VERB':
-                ncv.append([c, v])
+            # v = sentence[c.end]
+            # if sentence[c.end].pos_ == 'VERB':
+            #     ncv.append([c, v])
+
+            pattern = [{'POS': 'VERB', 'OP': '?'},
+                       {'POS': 'ADV', 'OP': '*'},
+                       {'POS': 'AUX', 'OP': '*'},
+                       {'POS': 'VERB', 'OP': '+'}]
+            matcher = Matcher(nlp.vocab)
+            matcher.add("Verb phrase", None, pattern)
+            matches = matcher(sentence)
+            spans = [sentence[start:end] for _, start, end in matches]
+            print(filter_spans(spans))
+
+            if len(spans) == 1:
+                if spans[0].start == c.end:
+                    gg = c.text + ' ' + spans[0].text
+
     if len(ncv) > 0:
         return ncv
     return None
@@ -732,11 +782,207 @@ sims = []
 # asdf
 # #######LOAD INPUT FOR TESTING #################
 q_2word_counts=np.load('./attribute_dictionary_testing', allow_pickle=True)
-loaded_weights=np.load('./tuned_weights_TEST_ALL', allow_pickle=True)
+loaded_weights=np.load('./tuned_weights_MASTER_UPDATED', allow_pickle=True)
 ent_dict=np.load('./ent_prob_dict', allow_pickle=True)
 big_q_counts=np.load('./biggest_qtype_counts', allow_pickle=True)
 
 count = 0
+
+# to_use_qtype_alec=[
+# 'who is individual',
+# 'what AUX',
+# 'who VERB',
+# 'how ADJ',
+# 'how much',
+# 'what NOUN',
+# 'how many',
+# 'when did',
+# 'why did',
+# 'who was',
+# 'where did',
+# 'who AUX',
+# 'why do',
+# 'how VERB',
+# 'who is identity',
+# 'what happened',
+# 'how old',
+# 'when VERB',
+# 'what VERB',
+# 'when AUX']
+# alec_w = {}
+# where_is=np.load('./tuned_weights_alec_where_is', allow_pickle=True)
+#
+# alec_w['where is'] = {}
+# alec_w['where is']["text_weight"]=8
+# alec_w['where is']["pos_weight"]=.5
+# alec_w['where is']["ent_weight"]=1
+# alec_w['where is']["k"]=2
+# alec_w['where is']["bump_weight"]=1
+# alec_w['where is']['threshold']=.25
+#
+# alec_w['who is individual'] = {}
+# alec_w['who is individual']["text_weight"]=2
+# alec_w['who is individual']["pos_weight"]=2
+# alec_w['who is individual']["ent_weight"]=1
+# alec_w['who is individual']["k"]=2
+# alec_w['who is individual']["bump_weight"]=1
+# alec_w['who is individual']['threshold']=.5
+#
+# alec_w['what AUX']={}
+# alec_w['what AUX']["text_weight"]=1
+# alec_w['what AUX']["pos_weight"]=.5
+# alec_w['what AUX']["ent_weight"]=1
+# alec_w['what AUX']["k"]=3
+# alec_w['what AUX']["bump_weight"]=1
+# alec_w['what AUX']['threshold']=.5
+#
+# alec_w['who VERB']={}
+# alec_w['who VERB']["text_weight"]=8
+# alec_w['who VERB']["pos_weight"]=.5
+# alec_w['who VERB']["ent_weight"]=8
+# alec_w['who VERB']["k"]=2
+# alec_w['who VERB']["bump_weight"]=2
+# alec_w['who VERB']['threshold']=0
+#
+# alec_w['how ADJ']={}
+# alec_w['how ADJ']["text_weight"]=4
+# alec_w['how ADJ']["pos_weight"]=.5
+# alec_w['how ADJ']["ent_weight"]=8
+# alec_w['how ADJ']["k"]=3
+# alec_w['how ADJ']["bump_weight"]=1
+# alec_w['how ADJ']['threshold']=0
+#
+# alec_w['how much']={}
+# alec_w['how much']["text_weight"]=1
+# alec_w['how much']["pos_weight"]=.5
+# alec_w['how much']["ent_weight"]=8
+# alec_w['how much']["k"]=2
+# alec_w['how much']["bump_weight"]=1
+# alec_w['how much']['threshold']=.5
+#
+# alec_w['what NOUN']={}
+# alec_w['what NOUN']["text_weight"]=1
+# alec_w['what NOUN']["pos_weight"]=.5
+# alec_w['what NOUN']["ent_weight"]=1
+# alec_w['what NOUN']["k"]=3
+# alec_w['what NOUN']["bump_weight"]=2
+# alec_w['what NOUN']['threshold']=0
+#
+# alec_w['how many']={}
+# alec_w['how many']["text_weight"]=4
+# alec_w['how many']["pos_weight"]=.5
+# alec_w['how many']["ent_weight"]=8
+# alec_w['how many']["k"]=1
+# alec_w['how many']["bump_weight"]=1
+# alec_w['how many']['threshold']=.5
+#
+# alec_w['when did']={}
+# alec_w['when did']["text_weight"]=8
+# alec_w['when did']["pos_weight"]=.5
+# alec_w['when did']["ent_weight"]=1
+# alec_w['when did']["k"]=2
+# alec_w['when did']["bump_weight"]=1
+# alec_w['when did']['threshold']=.5
+#
+# alec_w['why did']={}
+# alec_w['why did']["text_weight"]=4
+# alec_w['why did']["pos_weight"]=.5
+# alec_w['why did']["ent_weight"]=4
+# alec_w['why did']["k"]=5
+# alec_w['why did']["bump_weight"]=1
+# alec_w['why did']['threshold']=.5
+#
+# alec_w['who was']={}
+# alec_w['who was']["text_weight"]=1
+# alec_w['who was']["pos_weight"]=.5
+# alec_w['who was']["ent_weight"]=8
+# alec_w['who was']["k"]=2
+# alec_w['who was']["bump_weight"]=1
+# alec_w['who was']['threshold']=.25
+#
+# alec_w['where did']={}
+# alec_w['where did']["text_weight"]=8
+# alec_w['where did']["pos_weight"]=.5
+# alec_w['where did']["ent_weight"]=8
+# alec_w['where did']["k"]=3
+# alec_w['where did']["bump_weight"]=1
+# alec_w['where did']['threshold']=.5
+#
+# alec_w['who AUX']={}
+# alec_w['who AUX']["text_weight"]=4
+# alec_w['who AUX']["pos_weight"]=.5
+# alec_w['who AUX']["ent_weight"]=4
+# alec_w['who AUX']["k"]=2
+# alec_w['who AUX']["bump_weight"]=1
+# alec_w['who AUX']['threshold']=.5
+#
+# alec_w['why do']={}
+# alec_w['why do']["text_weight"]=1
+# alec_w['why do']["pos_weight"]=1
+# alec_w['why do']["ent_weight"]=1
+# alec_w['why do']["k"]=7
+# alec_w['why do']["bump_weight"]=1
+# alec_w['why do']['threshold']=.5
+#
+# alec_w['how VERB']={}
+# alec_w['how VERB']["text_weight"]=4
+# alec_w['how VERB']["pos_weight"]=.5
+# alec_w['how VERB']["ent_weight"]=1
+# alec_w['how VERB']["k"]=5
+# alec_w['how VERB']["bump_weight"]=1
+# alec_w['how VERB']['threshold']=0
+#
+# alec_w['who is identity']={}
+# alec_w['who is identity']["text_weight"]=8
+# alec_w['who is identity']["pos_weight"]=.5
+# alec_w['who is identity']["ent_weight"]=1
+# alec_w['who is identity']["k"]=3
+# alec_w['who is identity']["bump_weight"]=1
+# alec_w['who is identity']['threshold']=.5
+#
+# alec_w['what happened']={}
+# alec_w['what happened']["text_weight"]=1
+# alec_w['what happened']["pos_weight"]=.5
+# alec_w['what happened']["ent_weight"]=8
+# alec_w['what happened']["k"]=5
+# alec_w['what happened']["bump_weight"]=2
+# alec_w['what happened']['threshold']=.25
+#
+# alec_w['how old']={}
+# alec_w['how old']["text_weight"]=2
+# alec_w['how old']["pos_weight"]=2
+# alec_w['how old']["ent_weight"]=1
+# alec_w['how old']["k"]=1
+# alec_w['how old']["bump_weight"]=1
+# alec_w['how old']['threshold']=.25
+#
+# alec_w['when VERB']={}
+# alec_w['when VERB']["text_weight"]=2
+# alec_w['when VERB']["pos_weight"]=.5
+# alec_w['when VERB']["ent_weight"]=8
+# alec_w['when VERB']["k"]=3
+# alec_w['when VERB']["bump_weight"]=1
+# alec_w['when VERB']['threshold']=0
+#
+# alec_w['what VERB']={}
+# alec_w['what VERB']["text_weight"]=4
+# alec_w['what VERB']["pos_weight"]=.5
+# alec_w['what VERB']["ent_weight"]=4
+# alec_w['what VERB']["k"]=3
+# alec_w['what VERB']["bump_weight"]=2
+# alec_w['what VERB']['threshold']=0
+#
+# alec_w['when AUX']={}
+# alec_w['when AUX']["text_weight"]=4
+# alec_w['when AUX']["pos_weight"]=.5
+# alec_w['when AUX']["ent_weight"]=8
+# alec_w['when AUX']["k"]=2
+# alec_w['when AUX']["bump_weight"]=1
+# alec_w['when AUX']['threshold']=.5
+#
+# f = open('tuned_weights_alec_final', 'wb')
+# pickle.dump(alec_w, f)
+# f.close()
 
 test_stories={}
 test_questions={}
@@ -789,8 +1035,6 @@ for story_id in ordered_ids:
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
         # vectorized_q = vectorize_list(filtered_q_text)
 
-        # k = math.ceil(q_2word_counts[q_type]['Avg Ans Len'] / 2)
-
         # q_type2 = q_type.split()
         # if len(q_type2)>1:
         #     if q_type2[1].islower():
@@ -822,31 +1066,31 @@ for story_id in ordered_ids:
 
         # if q_type == 'where did':
 
-        ncv = get_ncv(nlp(question.strip()))
-        if ncv is not None:
-            sents = ncv_story_search(nlp(story), ncv)
-            if sents is None:
-                # k = used_weights['k']
-                k = 4
-                best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k, q_type, used_weights, bump_word, q_words)
-                # Find all sentences that are a part of the best context
-                sents_text = []
-                sents = []
-                for w in best_context:
-                    if w[0].sent.text not in sents_text:
-                        sents_text.append(w[0].sent.text)
-                        sents.append(w[0].sent)
-        else:
-            k = 4
-            best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k,
-                                                             q_type, used_weights, bump_word, q_words)
-            # Find all sentences that are a part of the best context
-            sents_text = []
-            sents = []
-            for w in best_context:
-                if w[0].sent.text not in sents_text:
-                    sents_text.append(w[0].sent.text)
-                    sents.append(w[0].sent)
+        # ncv = get_ncv(nlp(question.strip()))
+        # if ncv is not None:
+        #     sents = ncv_story_search(nlp(story), ncv)
+        #     if sents is None:
+        #         # k = used_weights['k']
+        #         k = 4
+        #         best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k, q_type, used_weights, bump_word, q_words)
+        #         # Find all sentences that are a part of the best context
+        #         sents_text = []
+        #         sents = []
+        #         for w in best_context:
+        #             if w[0].sent.text not in sents_text:
+        #                 sents_text.append(w[0].sent.text)
+        #                 sents.append(w[0].sent)
+
+        k = used_weights['k']
+        best_context, weight = get_best_context_w_weight(filtered_s, filtered_q, nlp(story), q_2word_counts, k,
+                                                         q_type, used_weights, bump_word, q_words)
+        # Find all sentences that are a part of the best context
+        sents_text = []
+        sents = []
+        for w in best_context:
+            if w[0].sent.text not in sents_text:
+                sents_text.append(w[0].sent.text)
+                sents.append(w[0].sent)
 
         # Find the sentence with the highest per-word weight
         best_weight = 0
@@ -884,6 +1128,10 @@ for story_id in ordered_ids:
         #     best_response += t[0].text + ' '
         # print('best response', best_response,file=sys.stderr)
 
+        pp = [t for t in best_sentence]
+
+        # get_ncv(nlp(question))
+
         # CASE-BY-CASE SENTENCE TRIMMING
         # Entity-based sentence trim
         if q_type in ent_dict:
@@ -897,15 +1145,25 @@ for story_id in ordered_ids:
         elif q_type == 'when did':
             pps = get_biggest_pps(best_sentence)
             best_sentence = when_did_trim(best_sentence, pps)
+
+        else:
+            best_sentence = best_sentence.text
         # elif q_type == 'who is':
         #     pps = get_biggest_pps(best_sentence)
             # best_sentence = when_did_trim(best_sentence, pps)
+
+
+        if q_type == 'who VERB':
+            best_sentence = who_verb_trim(best_sentence, question)
+
         print('Question: ', question,file=sys.stderr)
         print('Best context: ', best_context_text,file=sys.stderr)
         print('Best sentence: ', best_sentence,file=sys.stderr)
-        print('Best original sentence: ', orig_sentence,file=sys.stderr)
-
+        # print('Best original sentence: ', orig_sentence,file=sys.stderr)
+        print('Entities: ', [ent for ent in nlp(best_sentence).ents],file=sys.stderr)
+        print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
         print('Actual: ', answer, '\n',file=sys.stderr)
+
         # fscore, prec, recall= get_fscore(best_sentence.text,answer )
         # print('fscore: ', fscore, file=sys.stderr)
         # print('prec/recal: ', prec,recall,'\n', file=sys.stderr)
@@ -915,13 +1173,16 @@ for story_id in ordered_ids:
 #         # print(best_context,file=sys.stderr)
 #         # print('\n',file=sys.stderr)
 #
-        try:
-            print(best_sentence +"\n", file=sys.stderr)
-            print('QuestionID: '+question_id)
-            print('Answer: ' + best_sentence + "\n")
-        except TypeError:
-            print('QuestionID: '+question_id)
-            print('Answer: ' + best_sentence.text + "\n")
+        
+        # try:
+        #     print(best_sentence +"\n", file=sys.stderr)
+        #     print('QuestionID: '+question_id)
+        #     print('Answer: ' + best_sentence + "\n")
+        # except TypeError:
+        #     print('QuestionID: '+question_id)
+        #     print('Answer: ' + best_sentence.text + "\n")
+            
+            
 #         print('QuestionID: ' ,question, file=sys.stderr)
 #         print('Answer: ', answer, file=sys.stderr)
         
