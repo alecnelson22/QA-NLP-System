@@ -168,18 +168,6 @@ def get_best_context_w_weight(story_data, question_data, orig_story, attribute_d
                                     b_weight = weight_dict["bump_weight"]
                                 else:
                                     b_weight = 1
-
-                                # # This is here just to gain some insight into word pairs
-                                # # and their similarity scores
-                                # # Perhaps if words' similarity scores fall below a certain
-                                # # threshold then we don't allow it to contribute to the
-                                # # overall context weight?  Also, ignore negative sim scores?
-                                # sim = q_word[0].similarity(s_word[0])
-                                # w_pair = q_word[0].text + ' ' + s_word[0].text
-                                # if w_pair not in sims:
-                                #     sims.append(w_pair)
-                                #     print(w_pair, sim)
-
                                 curr_context_weight += q_word[0].similarity(s_word[0]) * weight_dict[w_type] * b_weight
                     elif (w_type == 'pos_weight'):
                         curr_attr = attribute_dict[q_type]['POS']
@@ -376,15 +364,12 @@ def get_q_words_count(nlp_q, nlp_a):
 
             for a in nlp_a:
 
-                # THIS CAN BE USEFUL FOR DEBUGGING
-                if q2 == 'where did':
-                    for t in nlp_q:
-                        if t.dep_ == 'ROOT':
-                            rw = t.text
-                            break
-                    # print(nlp_q.text)
-                    # print(a.text)
-                    # print('')
+                # # THIS CAN BE USEFUL FOR DEBUGGING
+                # if q2 == 'where did':
+                #     for t in nlp_q:
+                #         if t.dep_ == 'ROOT':
+                #             rw = t.text
+                #             break
 
                 for ent in a.ents:
                     if ent.label_ not in q_2word_counts[q2]['ENT']:
@@ -413,6 +398,9 @@ def get_q_type(question, q_words):
     for i, token in enumerate(tokenized_q):
         if token.lower() in q_words:
             q_type = token.lower() + ' ' + question[i + 1].text
+
+            if question[i + 1].text == 'date' or question[i + 1].text == 'year' or question[i + 1].text == 'percent':
+                print(q_type,file=sys.stderr)
 
             # SPECIAL CASES
             if q_type == 'what did':
@@ -556,16 +544,14 @@ def when_did_trim(sentence, pps):
 def who_verb_trim(sentence, question):
     nlp_q = nlp(question.strip())
     if nlp_q[1].dep_ == 'ROOT':
-        nlp_s = nlp(sentence)
+        nlp_s = nlp(sentence.text)
         for tokq in nlp_s:
             if tokq.lemma_ == nlp_q[1].lemma_:
                 first_ent = None
-
                 i = tokq.i - 1
                 if nlp_s[i].pos_ == 'NOUN' or nlp_s[i].pos_ == 'PROPN':
                     sent = nlp_s[0 : tokq.i]
                     return sent.text
-
                 for ent in nlp_s.ents:
                     if ent.label_ == 'PERSON' or ent.label_ == 'ORG':
                         if first_ent is None:
@@ -669,6 +655,10 @@ def ncv_story_search(story, ncv):
     if len(sents) > 0:
         return sents
     return None
+
+
+def get_pp_nc(sentence):
+    nc = sentence
 
 # ===========================
 # ===========================
@@ -1071,7 +1061,7 @@ for story_id in ordered_ids:
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
         # vectorized_q = vectorize_list(filtered_q_text)
 
-        if q_type != 'what is':
+        if q_type != 'who VERB':
             continue
 
         # q_type2 = q_type.split()
@@ -1189,22 +1179,22 @@ for story_id in ordered_ids:
         #     pps = get_biggest_pps(best_sentence)
             # best_sentence = when_did_trim(best_sentence, pps)
 
-        elif q_type == 'who VERB':
-            best_sentence = who_verb_trim(best_sentence, question)
+        if q_type == 'what is':
+            best_sentence = what_is_trim(best_sentence, question)
 
         # else:
         #     best_sentence = best_sentence.text
 
-        if q_type == 'what is':
-            best_sentence = what_is_trim(best_sentence, question)
+        elif q_type == 'who VERB':
+            best_sentence = who_verb_trim(best_sentence, question)
 
-        print('Question: ', question,file=sys.stderr)
-        print('Best context: ', best_context_text,file=sys.stderr)
-        print('Best sentence: ', best_sentence,file=sys.stderr)
-        # print('Best original sentence: ', orig_sentence,file=sys.stderr)
-        print('Entities: ', [ent for ent in nlp(best_sentence).ents],file=sys.stderr)
-        # print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
-        print('Actual: ', answer, '\n',file=sys.stderr)
+            print('Question: ', question,file=sys.stderr)
+            print('Best context: ', best_context_text,file=sys.stderr)
+            print('Best sentence: ', best_sentence,file=sys.stderr)
+            # print('Best original sentence: ', orig_sentence,file=sys.stderr)
+            # print('Entities: ', [ent for ent in nlp(best_sentence).ents],file=sys.stderr)
+            # print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
+            print('Actual: ', answer, '\n',file=sys.stderr)
 
         # fscore, prec, recall= get_fscore(best_sentence.text,answer )
         # print('fscore: ', fscore, file=sys.stderr)
