@@ -497,7 +497,7 @@ def ent_trim(q_type, sentences, ent_dict):
                 s = s.rstrip()
                 return s
                 # return s
-    return sorted_sents[list(sorted_sents.keys())[0]]
+    return sorted_sents[list(sorted_sents.keys())[0]].text
 
 
 def why_bec_trim(sentence):
@@ -555,11 +555,19 @@ def when_did_trim(sentence, pps):
 
 def who_verb_trim(sentence, question):
     nlp_q = nlp(question.strip())
+    test1 = [t for t in nlp_q]
     if nlp_q[1].dep_ == 'ROOT':
         nlp_s = nlp(sentence)
+        test = [t for t in nlp_s]
         for tokq in nlp_s:
-            if tokq.text == nlp_q[1].text:
+            if tokq.lemma_ == nlp_q[1].lemma_:
                 first_ent = None
+
+                i = tokq.i - 1
+                if nlp_s[i].pos_ == 'NOUN' or nlp_s[i].pos_ == 'PROPN':
+                    sent = nlp_s[0 : tokq.i]
+                    return sent.text
+
                 for ent in nlp_s.ents:
                     if ent.label_ == 'PERSON' or ent.label_ == 'ORG':
                         if first_ent is None:
@@ -572,7 +580,7 @@ def who_verb_trim(sentence, question):
                             if ent == first_ent:
                                 sw = False
                                 while i >= 0:
-                                    if nlp_s[i].pos_ == 'NOUN' or nlp_s[i].pos_ == 'PROPN':
+                                    if nlp_s[i].pos_ == 'NOUN' or nlp_s[i].pos_ == 'PROPN'  or ent.label_ == 'ADJ':
                                         if i == 0:
                                             break
                                         i -= 1
@@ -1034,6 +1042,9 @@ for story_id in ordered_ids:
         filtered_q = filter_by_POS(tagged_q, filter_pos_tags)
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
         # vectorized_q = vectorize_list(filtered_q_text)
+
+        if q_type != 'who VERB':
+            continue
 
         # q_type2 = q_type.split()
         # if len(q_type2)>1:
