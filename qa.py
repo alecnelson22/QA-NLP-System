@@ -555,10 +555,8 @@ def when_did_trim(sentence, pps):
 
 def who_verb_trim(sentence, question):
     nlp_q = nlp(question.strip())
-    test1 = [t for t in nlp_q]
     if nlp_q[1].dep_ == 'ROOT':
         nlp_s = nlp(sentence)
-        test = [t for t in nlp_s]
         for tokq in nlp_s:
             if tokq.lemma_ == nlp_q[1].lemma_:
                 first_ent = None
@@ -595,6 +593,36 @@ def who_verb_trim(sentence, question):
                             return sent.text
     return sentence
 
+
+def what_is_trim(sentence, question):
+    nlp_q = nlp(question.strip())
+    nlp_s = sentence
+    chunks_q = [token for token in nlp_q.noun_chunks][1:]
+    if len(chunks_q) == 1 and chunks_q[0].start == 2 and nlp_q[chunks_q[0].end].pos_ == 'PUNCT':
+        for chunk_s in nlp_s.noun_chunks:
+            if chunk_s.lower_ == chunks_q[0].lower_:
+                j = chunk_s.end - nlp_s.start
+                if nlp_s[j] != nlp_s[-1] and nlp_s[j].pos_ == 'PUNCT':
+                    if nlp_s[j].text != ',':
+                        ignore_comma = True
+                    else:
+                        ignore_comma = False
+                    j += 1
+
+                    gt = nlp_s[-1]
+                    for k in range(j, nlp_s[-1].i - nlp_s.start + 1):
+                        if ignore_comma:
+                            if nlp_s[k].text == ',':
+                                continue
+                        if nlp_s[k].pos_ == 'PUNCT':
+                            break
+
+                    # while nlp_s[j].pos_ != 'PUNCT' and j < nlp_s[-1].i-1:
+                    #     j += 1
+                    #     tt = nlp_s[j]
+                    #     jj = nlp_s[-1]
+                    return nlp_s[chunk_s.end - nlp_s.start + 1:k].text
+    return sentence.text
 
 # checks if there is a single noun chunk followed by a verb in a sentence, returns them
 def get_ncv(sentence):
@@ -1043,7 +1071,7 @@ for story_id in ordered_ids:
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
         # vectorized_q = vectorize_list(filtered_q_text)
 
-        if q_type != 'who VERB':
+        if q_type != 'what is':
             continue
 
         # q_type2 = q_type.split()
@@ -1157,22 +1185,25 @@ for story_id in ordered_ids:
             pps = get_biggest_pps(best_sentence)
             best_sentence = when_did_trim(best_sentence, pps)
 
-        else:
-            best_sentence = best_sentence.text
         # elif q_type == 'who is':
         #     pps = get_biggest_pps(best_sentence)
             # best_sentence = when_did_trim(best_sentence, pps)
 
-
-        if q_type == 'who VERB':
+        elif q_type == 'who VERB':
             best_sentence = who_verb_trim(best_sentence, question)
+
+        # else:
+        #     best_sentence = best_sentence.text
+
+        if q_type == 'what is':
+            best_sentence = what_is_trim(best_sentence, question)
 
         print('Question: ', question,file=sys.stderr)
         print('Best context: ', best_context_text,file=sys.stderr)
         print('Best sentence: ', best_sentence,file=sys.stderr)
         # print('Best original sentence: ', orig_sentence,file=sys.stderr)
         print('Entities: ', [ent for ent in nlp(best_sentence).ents],file=sys.stderr)
-        print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
+        # print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
         print('Actual: ', answer, '\n',file=sys.stderr)
 
         # fscore, prec, recall= get_fscore(best_sentence.text,answer )
