@@ -1069,8 +1069,8 @@ for story_id in ordered_ids:
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
         # vectorized_q = vectorize_list(filtered_q_text)
 
-        # if q_type != 'where did' and q_type != 'where is' and q_type != 'where was' and q_type != 'where does':
-        #     continue
+        if q_type != 'what are':
+            continue
 
         # q_type2 = q_type.split()
         # if len(q_type2)>1:
@@ -1100,8 +1100,6 @@ for story_id in ordered_ids:
 
         # Try finding signature (1 noun chunk followed by 1 verb) in question)
         # If it exists, try to find a highly similar match in story, before calling gbc
-
-        # if q_type == 'where did':
 
         # ncv = get_ncv(nlp(question.strip()))
         # if ncv is not None:
@@ -1196,7 +1194,6 @@ for story_id in ordered_ids:
         elif q_type == 'who VERB':
             best_sentence = who_verb_trim(best_sentence, question)
 
-        # NEW TRIMS TO ADD
         elif q_type == 'what NOUN':
             best_sentence = get_pp_nc(best_sentence)
         elif q_type == 'where did':
@@ -1208,6 +1205,19 @@ for story_id in ordered_ids:
         elif q_type == 'where was':
             best_sentence = get_pp_nc(best_sentence)
 
+
+        # NEW TRIMS TO ADD
+        elif q_type == 'which NOUN':
+            best_sentence = get_pp_nc(best_sentence)
+        elif q_type == 'who is individual':
+            best_sentence = get_pp_nc(best_sentence)
+        elif q_type == 'who is identity':
+            best_sentence = get_pp_nc(best_sentence)
+        elif q_type == 'who AUX':
+            best_sentence = get_pp_nc(best_sentence)
+        elif q_type == 'what are':
+            best_sentence = what_is_trim(best_sentence, question)
+            
 
         print('Question: ', question,file=sys.stderr)
         print('Best context: ', best_context_text,file=sys.stderr)
