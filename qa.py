@@ -399,8 +399,8 @@ def get_q_type(question, q_words):
         if token.lower() in q_words:
             q_type = token.lower() + ' ' + question[i + 1].text
 
-            if question[i + 1].text == 'date' or question[i + 1].text == 'year' or question[i + 1].text == 'percent':
-                print(q_type,file=sys.stderr)
+            # if tokenized_q[i + 1].text == 'date' or tokenized_q[i + 1].text == 'year' or tokenized_q[i + 1].text == 'percent':
+            #     print(q_type,file=sys.stderr)
 
             # SPECIAL CASES
             if q_type == 'what did':
@@ -629,7 +629,6 @@ def get_ncv(sentence):
             matcher.add("Verb phrase", None, pattern)
             matches = matcher(sentence)
             spans = [sentence[start:end] for _, start, end in matches]
-            print(filter_spans(spans))
 
             if len(spans) == 1:
                 if spans[0].start == c.end:
@@ -657,8 +656,17 @@ def ncv_story_search(story, ncv):
     return None
 
 
+# NEW TRIM TO ADD
 def get_pp_nc(sentence):
-    nc = sentence
+    sentence = nlp(sentence.text)
+    nc = [c for c in sentence.noun_chunks]
+    for i in range(len(nc) - 1):
+        if sentence[nc[i].end].pos_ == 'ADP' and nc[i+1].start == nc[i].end + 1:
+            nc.append(sentence[nc[i].end])
+    nc = [c.text for c in nc]
+    nc = list(dict.fromkeys(nc))
+    best_sentence = ' '.join(nc)
+    return best_sentence
 
 # ===========================
 # ===========================
@@ -1061,8 +1069,8 @@ for story_id in ordered_ids:
         filtered_q = filter_by_stopwords(filtered_q, stop_words)
         # vectorized_q = vectorize_list(filtered_q_text)
 
-        if q_type != 'who VERB':
-            continue
+        # if q_type != 'where did' and q_type != 'where is' and q_type != 'where was' and q_type != 'where does':
+        #     continue
 
         # q_type2 = q_type.split()
         # if len(q_type2)>1:
@@ -1188,13 +1196,26 @@ for story_id in ordered_ids:
         elif q_type == 'who VERB':
             best_sentence = who_verb_trim(best_sentence, question)
 
-            print('Question: ', question,file=sys.stderr)
-            print('Best context: ', best_context_text,file=sys.stderr)
-            print('Best sentence: ', best_sentence,file=sys.stderr)
-            # print('Best original sentence: ', orig_sentence,file=sys.stderr)
-            # print('Entities: ', [ent for ent in nlp(best_sentence).ents],file=sys.stderr)
-            # print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
-            print('Actual: ', answer, '\n',file=sys.stderr)
+        # NEW TRIMS TO ADD
+        elif q_type == 'what NOUN':
+            best_sentence = get_pp_nc(best_sentence)
+        elif q_type == 'where did':
+            best_sentence = get_pp_nc(best_sentence)
+        elif q_type == 'where is':
+            best_sentence = get_pp_nc(best_sentence)
+        elif q_type == 'where does':
+            best_sentence = get_pp_nc(best_sentence)
+        elif q_type == 'where was':
+            best_sentence = get_pp_nc(best_sentence)
+
+
+        print('Question: ', question,file=sys.stderr)
+        print('Best context: ', best_context_text,file=sys.stderr)
+        print('Best sentence: ', best_sentence,file=sys.stderr)
+        # print('Best original sentence: ', orig_sentence,file=sys.stderr)
+        # print('Entities: ', [ent for ent in nlp(best_sentence).ents],file=sys.stderr)
+        # print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
+        print('Actual: ', answer, '\n',file=sys.stderr)
 
         # fscore, prec, recall= get_fscore(best_sentence.text,answer )
         # print('fscore: ', fscore, file=sys.stderr)
