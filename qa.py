@@ -1217,17 +1217,32 @@ for story_id in ordered_ids:
         elif q_type == 'what are':
             best_sentence = what_is_trim(best_sentence, question)
 
-        # FILTER FOR UNIQUE WORDS
+        # filter for unique words
         unique = []
         for w in best_sentence.split():
             if w not in unique:
                 unique.append(w)
         best_sentence = ' '.join(unique)
 
+        # FILTER SENTENCE BY QUESTION NOUNS
+        unique_nouns = []
+        for w in nlp(question.strip()):
+            if w.pos_ == 'NOUN' or w.pos_ == 'PROPN':
+                if w.text.lower() not in unique_nouns:
+                    unique_nouns.append(w.text.lower())
+        ss = best_sentence.split()
+        new_ss = []
+        for w in ss:
+            if w.lower() not in unique_nouns:
+                new_ss.append(w.lower())
+        best_sentence = ' '.join(new_ss)
+
+
 
         print('Question: ', question,file=sys.stderr)
         print('Best context: ', best_context_text,file=sys.stderr)
         print('Best sentence: ', best_sentence,file=sys.stderr)
+        print('Unique Q NOUNS: ', unique_nouns, file=sys.stderr)
         # print('Best original sentence: ', orig_sentence,file=sys.stderr)
         # print('Entities: ', [ent for ent in nlp(best_sentence).ents],file=sys.stderr)
         # print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
