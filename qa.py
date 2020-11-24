@@ -1206,7 +1206,6 @@ for story_id in ordered_ids:
             best_sentence = get_pp_nc(best_sentence)
 
 
-        # NEW TRIMS TO ADD
         elif q_type == 'which NOUN':
             best_sentence = get_pp_nc(best_sentence)
         elif q_type == 'who is individual':
@@ -1217,7 +1216,14 @@ for story_id in ordered_ids:
             best_sentence = get_pp_nc(best_sentence)
         elif q_type == 'what are':
             best_sentence = what_is_trim(best_sentence, question)
-            
+
+        # FILTER FOR UNIQUE WORDS
+        unique = []
+        for w in best_sentence.split():
+            if w not in unique:
+                unique.append(w)
+        best_sentence = ' '.join(unique)
+
 
         print('Question: ', question,file=sys.stderr)
         print('Best context: ', best_context_text,file=sys.stderr)
