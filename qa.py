@@ -1238,11 +1238,25 @@ for story_id in ordered_ids:
         best_sentence = ' '.join(new_ss)
 
 
+        # FILTER SENTENCE BY QUESTION VERBS, ADJ, ADV
+        unique_q= []
+        for w in nlp(question.strip()):
+            if w.pos_ == 'VERB' or w.pos_ == 'ADJ' or w.pos_ == 'ADV':
+                if w.text.lower() not in unique_q:
+                    unique_q.append(w.text.lower())
+        ss = best_sentence.split()
+        new_ss = []
+        for w in ss:
+            if w.lower() not in unique_q:
+                new_ss.append(w.lower())
+        best_sentence = ' '.join(new_ss)
+
+
 
         print('Question: ', question,file=sys.stderr)
         print('Best context: ', best_context_text,file=sys.stderr)
         print('Best sentence: ', best_sentence,file=sys.stderr)
-        print('Unique Q NOUNS: ', unique_nouns, file=sys.stderr)
+        print('Unique Q TERMS: ', unique_q, file=sys.stderr)
         # print('Best original sentence: ', orig_sentence,file=sys.stderr)
         # print('Entities: ', [ent for ent in nlp(best_sentence).ents],file=sys.stderr)
         # print('Entity labels: ', [ent.label_ for ent in nlp(best_sentence).ents], file=sys.stderr)
